@@ -1,0 +1,9 @@
+.test-controls { margin-bottom: 1em; }
+
+.test { background: #eee; }
+.test > .bar { display: flex; background: #ccc; font-size: 1.2em; }
+.test > .bar { flex: 1; padding: 0.25em 0.5em; cursor: pointer; }
+.test > .content { padding: 0.25em 0.5em; }
+.test > .footer { padding: 0.25em 0.5em; }
+
+.test.active > .bar { font-weight: bold; }
