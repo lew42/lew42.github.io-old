@@ -248,10 +248,6 @@ define("Base", function(){
 	return Base;
 });
 
-define("is", function(){
-	return is;
-});
-
 define("log", function(){
 	return log;
 });
@@ -259,69 +255,8 @@ define.log = define.log.on;
 
 
 
-})(/*logger goes here);*/
-define("devsocket", [], function(){
-
-var ws = window.socket = new WebSocket("ws://localhost");
-
-ws.addEventListener("open", function(e){
-	console.log("websocket connected");
-});
-
-ws.addEventListener("message", function(e){
-	console.log("message", e);
-	if (e.data === "reload"){
-
-		window.location.reload();
-	}
-});
-
-}); // yee haw
-;(function(){
-
-
-var is = window.is = {
-	arr: function(value){
-		return toString.call(value) === '[object Array]';
-	},
-	obj: function(value){
-		return typeof value === "object" && !is.arr(value);
-	},
-	dom: function(value){
-		return value && value.nodeType > 0;
-	},
-	el: function(value){
-		return value && value.nodeType === 1;
-	},
-	str: function(value){
-		return typeof value === "string";
-	},
-	num: function(value){
-		return typeof value === "number";
-	},
-	bool: function(value){
-		return typeof value === 'boolean';
-	},
-	fn: function(value){
-		return typeof value === 'function';
-	},
-	def: function(value){
-		return typeof value !== 'undefined';
-	},
-	undef: function(value){
-		return typeof value === 'undefined';
-	},
-	/// seems to work
-	pojo: function(value){
-		return is.obj(value) && value.constructor === Object;
-	},
-	proto: function(value){
-		return is.obj(value) && value.constructor && value.constructor.prototype === value;
-	}
-};
-
-})();(function(){
-
+})(/*logger goes here);*/(function(){
+/*log.js */
 var console_methods = ["log", "group", "debug", "trace", "error", "warn", "info", "time", "timeEnd"];
 
 var g = function(str, fn){
@@ -393,3 +328,70 @@ enabled_logger.off.on = enabled_logger;
 
 return enabled_logger;
 })());
+
+
+
+/*/home/michael/Code/lew42.com/simple.js/auto/devsocket.js*/
+define("devsocket", [], function(){
+
+var ws = window.socket = new WebSocket("ws://localhost");
+
+ws.addEventListener("open", function(e){
+	console.log("websocket connected");
+});
+
+ws.addEventListener("message", function(e){
+	console.log("message", e);
+	if (e.data === "reload"){
+
+		window.location.reload();
+	}
+});
+
+}); // yee haw
+
+
+/*/home/michael/Code/lew42.com/simple.js/auto/is.js*/
+define("is", function(){
+var is = {
+	arr: function(value){
+		return toString.call(value) === '[object Array]';
+	},
+	obj: function(value){
+		return typeof value === "object" && !is.arr(value);
+	},
+	dom: function(value){
+		return value && value.nodeType > 0;
+	},
+	el: function(value){
+		return value && value.nodeType === 1;
+	},
+	str: function(value){
+		return typeof value === "string";
+	},
+	num: function(value){
+		return typeof value === "number";
+	},
+	bool: function(value){
+		return typeof value === 'boolean';
+	},
+	fn: function(value){
+		return typeof value === 'function';
+	},
+	def: function(value){
+		return typeof value !== 'undefined';
+	},
+	undef: function(value){
+		return typeof value === 'undefined';
+	},
+	/// seems to work
+	pojo: function(value){
+		return is.obj(value) && value.constructor === Object;
+	},
+	proto: function(value){
+		return is.obj(value) && value.constructor && value.constructor.prototype === value;
+	}
+};
+
+return is;
+});

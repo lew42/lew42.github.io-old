@@ -1,0 +1,1 @@
+define("index.js", [], function(){});
