@@ -1,4 +1,4 @@
-define("indexed/", ["Base", "evented", "View/"], function(Base, evented, View){
+define("Indexed/", ["Base", "evented", "View/", "is"], function(Base, evented, View, is){
 
 // namespaces suck - avoid like the plague
 	// need to come up with a good name early on, because

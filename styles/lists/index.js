@@ -1,7 +1,4 @@
-define("/styles/lists/index.js", ["is", "View/", "Stylesheet/"], function(is, View, Stylesheet){
-
-	var fontAwesome = View({tag: "link"}).attr("rel", "stylesheet").attr("href", "https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css");
-	document.head.appendChild(fontAwesome.el);
+define("/styles/lists/index.js", ["is", "View/", "Stylesheet/", "font-awesome"], function(is, View, Stylesheet){
 
 	var styles = Stylesheet();
 
@@ -91,6 +88,10 @@ define("/styles/lists/index.js", ["is", "View/", "Stylesheet/"], function(is, Vi
 			}
 		});
 
+		// this is probably easier... why predefine a bunch of nonsense?
+		item1.label = "whatever";
+		item1.update();
+
 		item1.set_label("new label..");
 
 		item1.icon.set("plane");
@@ -102,40 +103,6 @@ define("/styles/lists/index.js", ["is", "View/", "Stylesheet/"], function(is, Vi
 		// you could just put an .update() in .set()...
 			// all .set() calls will auto-update...
 			// not very efficient, but much simpler than the alternative
-
-
-/*
-
-How about, never store properties on the views?
-
-I suppose, for something simple like an Icon, we don't really need an Icon and IconView.
-
-But, for most other things, if you have a Thing, and a ThingView, you can
-* render multiples
-* mimic property names (thing.label ---> thingView.label)
-* automate updating?
-
-If thing.set({prop}) looks for thing.set_prop,
-and thing.set_prop is auto-configured to views.each((view) => view.update_prop(newValue))
-
-Or, we create .props{}, and .set() looks at .props, and if it exists, does an auto-update?
-And if the view can automatically update dom based on propnames...
-
-1.  we create the Thing, with certain propNames
-2.  those propNames are registered on thing.props{}
-3.  thing.set({}) acts like assign, unless it finds thing.props{propName} match
-4.  those registered props identify a thingView[propName]
-		this means, we need thing.icon to point to thingView.icon, even if its nested
-
-One issue here, is that you can't easily extend the set_propName behavior?
-If you want it automated, and you want to customize it... we have a little problem
-
-
-Just stick to a simple solution for now:  ignore maximum performance for ease of use.
-item.assign({..}).update();
-update -> views.each.update() --> updates all properties every time...
-
-*/
 
 
 	}).addClass("lists-page");

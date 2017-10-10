@@ -331,7 +331,7 @@ return enabled_logger;
 
 
 
-/*C:\projects\lew42.com\simple.js/auto/devsocket.js*/
+/*/home/michael/Code/lew42.com/simple/auto/devsocket.js*/
 define("devsocket", [], function(){
 
 var ws = window.socket = new WebSocket("ws://localhost");
@@ -348,10 +348,12 @@ ws.addEventListener("message", function(e){
 	}
 });
 
+return ws
+
 }); // yee haw
 
 
-/*C:\projects\lew42.com\simple.js/auto/is.js*/
+/*/home/michael/Code/lew42.com/simple/auto/is.js*/
 define("is", function(){
 var is = {
 	arr: function(value){

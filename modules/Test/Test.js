@@ -107,10 +107,13 @@ Test.assign({
 			reset: View({tag:"button"}, "reset").click(function(){
 				// window.location.hash = "";
 				// window.location.reload();
-				window.location.href = window.location.href.split('#')[0]
+				Test.reset();
 			})
 		});
 		document.body.appendChild(controls.el);
+	},
+	reset: function(){
+		Test.reset();
 	}
 });
 
