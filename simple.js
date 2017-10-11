@@ -1,14 +1,25 @@
-/*
- * window.define
- */
+define = function(){
+	var args = define.args(arguments);
+	var script = document.currentScript; 
+	var module;
+	var a;
 
-;(function(log){
-	
-var Base = function(){
-	this.instantiate.apply(this, arguments);
+	if (args.id){
+		module = define.get(args.id);
+	} else if (script && script.module){
+		module = script.module;
+	} else {
+		a = document.createElement("a");
+		a.href = script.src;
+		module = new define.Module(a.pathname);
+	}
+
+	define.delayRequests();
+
+	return module.define(args.factory, args.deps);
 };
 
-var assign = Base.assign = Base.prototype.assign = function(){
+define.assign = function(){
 	var arg;
 	for (var i = 0; i < arguments.length; i++){
 		arg = arguments[i];
@@ -19,9 +30,13 @@ var assign = Base.assign = Base.prototype.assign = function(){
 	return this;
 };
 
-Base.prototype.instantiate = function(){};
+define.Base = function(){
+	this.instantiate.apply(this, arguments);
+};
 
-Base.extend = function(){
+define.Base.prototype.instantiate = function(){};
+
+define.Base.extend = function(){
 	var Ext = function(){
 		this.instantiate.apply(this, arguments);
 	};
@@ -34,8 +49,7 @@ Base.extend = function(){
 	return Ext;
 };
 
-
-var Module = Base.extend({
+Module = Base.extend({
 	instantiate: function(id){
 		this.id = id;
 		
@@ -159,30 +173,77 @@ var Module = Base.extend({
 	}
 });
 
-var define = window.define = function(){
-	var args = define.args(arguments);
-	var script = document.currentScript; 
-	var module;
-	var a;
+define.assign({
+	modules: {},
+	moduleRoot: "modules",
+	delayRequests: function(){
+		define.debug.time("define.requests timeout");
+		if (define.delayRequestsTimeout){
+			clearTimeout(define.delayRequestsTimeout);
+		}
+		define.delayRequestsTimeout = setTimeout(define.requests, 0);
+	},
+	get: function(id){
+		return (define.modules[id] = define.modules[id] || new define.Module(id));
+	},
+	args: function(argu){
+		var arg, args = {};
+		for (var i = 0; i < argu.length; i++){
+			arg = argu[i];
+			if (typeof arg === "string")
+				args.id = arg;
+			else if (toString.call(arg) === '[object Array]')
+				args.deps = arg;
+			else if (typeof arg === "function")
+				args.factory = arg;
+			else
+				console.error("whoops");
+		}
+		return args;
+	},
+	requests: function(){
+		define.debug.g("define.requests", function(){
+			define.debug.timeEnd("define.requests timeout");
+			for (var i in define.modules){
+				define.modules[i].request();
+			}
+		});
+	},
+	resolve: function(id){
+		var parts = id.split("/"); // id could be //something.com/something/?
+		
+		if (id[id.length-1] === "/"){
+			// ends in "/", mimic last part
+			id = id + parts[parts.length-2] + ".js";
+		} else if (parts[parts.length-1].indexOf(".js") < 0){
+			// only supports .js files
+			id = id + ".js";
+		}
 
-	if (args.id){
-		module = define.get(args.id);
-	} else if (script && script.module){
-		module = script.module;
-	} else {
-		a = document.createElement("a");
-		a.href = script.src;
-		module = new define.Module(a.pathname);
+		// convert non-absolute paths to moduleRoot paths
+		if (id[0] !== "/"){
+			id = "/" + define.moduleRoot + "/" + id;
+		}
+
+		return id;
 	}
+});
 
-	define.delayRequests();
 
-	return module.define(args.factory, args.deps);
-};
+;(function(log){
+	
+
+
+
+
+var 
+
+
 
 define.assign = assign;
 
 define.assign({
+	assign: assign,
 	log: log,
 	debug: log.off,
 	modules: {},
@@ -255,8 +316,7 @@ define.log = define.log.on;
 
 
 
-})(/*logger goes here);*/(function(){
-/*log.js */
+})(/*logger goes here);*/(function(define){
 var console_methods = ["log", "group", "debug", "trace", "error", "warn", "info", "time", "timeEnd"];
 
 var g = function(str, fn){
@@ -325,13 +385,12 @@ var make_disabled_logger = function(){
 enabled_logger.off = make_disabled_logger();
 enabled_logger.off.on = enabled_logger;
 
-
-return enabled_logger;
-})());
-
+define.log = enabled_logger;
+})(window.define));
 
 
-/*/home/michael/Code/lew42.com/simple/auto/devsocket.js*/
+
+/*C:\projects\lew42.com\simple/docs/modules/devsocket.js*/
 define("devsocket", [], function(){
 
 var ws = window.socket = new WebSocket("ws://localhost");
@@ -353,7 +412,7 @@ return ws
 }); // yee haw
 
 
-/*/home/michael/Code/lew42.com/simple/auto/is.js*/
+/*C:\projects\lew42.com\simple/docs/modules/is.js*/
 define("is", function(){
 var is = {
 	arr: function(value){
