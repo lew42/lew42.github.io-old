@@ -1,0 +1,1 @@
+define("/styles/index.js", [""])
