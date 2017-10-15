@@ -48,10 +48,11 @@ define.assign = function(){
 
 
 
-// 4_log.js
+// 4_logger.js
 (function(define){
 
-	var console_methods = ["log", "group", "debug", "trace", "error", "warn", "info", "time", "timeEnd", "dir"];
+	var console_methods = ["log", "group", "debug", "trace", 
+		"error", "warn", "info", "time", "timeEnd", "dir"];
 
 	var g = function(str, fn){
 		this.group(str);
@@ -91,8 +92,6 @@ define.assign = function(){
 		return enabled_logger;
 	};
 
-	var enabled_logger = make_enabled_logger();
-	enabled_logger.on = enabled_logger;
 
 	var noop = function(){};
 
@@ -112,15 +111,29 @@ define.assign = function(){
 		};
 		disabled_logger.g = g;
 		disabled_logger.gc = gc;
+
+		disabled_logger.isLogger = true;
 		
 		return disabled_logger;
 	};
 
-	enabled_logger.off = make_disabled_logger();
-	enabled_logger.off.on = enabled_logger;
+	var enabled_logger = make_enabled_logger();
+	var disabled_logger = make_disabled_logger();
 
-	define.log = enabled_logger;
-	define.debug = define.log.off;
+	enabled_logger.on = disabled_logger.on = enabled_logger;
+	enabled_logger.off = disabled_logger.off = disabled_logger;
+
+	var logger = define.logger = function(value){
+		if (typeof value === "boolean"){
+			if (value)
+				return enabled_logger;
+			else
+				return enabled_logger.off;
+		}
+	};
+
+	define.log = logger(false);
+	define.debug = logger(false);
 
 })(define)
 
