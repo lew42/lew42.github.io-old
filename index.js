@@ -1,4 +1,4 @@
-define("index.js", [], function(){
+define("index.js", [   "styles"], function(){
 
 	var Base3 = Base2.extend({
 
