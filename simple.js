@@ -137,18 +137,28 @@ define.assign = function(){
 			this.log = define.log;
 			this.debug = define.debug;
 
-			this.deps = []; // dependencies (Module instances)
+			this.dependencies = []; // dependencies (Module instances)
 			this.dependents = [];
 
 			this.views = [];
 		},
-		define: function(fn, deps){
-			this.debug.group("define", this.id, deps || []);
+		fixLoggers: function(){
+			if (typeof this.log === "boolean"){
+				this.log = this.log ? define.log.on : define.log.off;
+			}
 
-			this.factory = fn;
+			if (typeof this.debug === "boolean"){
+				this.debug = this.debug ? define.log.on : define.log.off;
+			}
+		},
+		define: function(args){
+			this.assign(args);
+			this.fixLoggers();
 
-			if (deps)
-				deps.forEach(this.require.bind(this));
+			this.debug.group("define", this.id, this.deps || []);
+
+			if (this.deps)
+				this.deps.forEach(this.require.bind(this));
 
 			this.defined = true;
 
@@ -160,10 +170,15 @@ define.assign = function(){
 			var module = define.get(id);
 
 			// all deps
-			this.deps.push(module);
+			this.dependencies.push(module);
 
 			// deps track dependents, too
 			module.dependents.push(this);
+
+			if (this.debug.enabled){
+				module.log = this.debug;
+				module.debug = this.debug;
+			}
 		},
 		/**
 		 * All requests get delayed.  See define(), define.delayRequests(), and define.requests()
@@ -203,12 +218,11 @@ define.assign = function(){
 			var args = this.args();
 			
 			if (args){
-				// !this.dependents.length && 
-					this.log.group(this.id, this.deps.map(function(dep){ return dep.id }));
+				this.log.group(this.id, this.dependencies.map(function(dep){ return dep.id }));
 				this.value = this.factory.apply(null, args);
 				this.executed = true;
 				// !this.dependents.length && 
-					this.log.end();
+				this.log.end();
 				this.finish();
 			} else {
 				this.debug(this.id, "not ready");
@@ -226,8 +240,8 @@ define.assign = function(){
 		},
 		args: function(){
 			var dep, args = [];
-			for (var i = 0; i < this.deps.length; i++){
-				dep = this.deps[i];
+			for (var i = 0; i < this.dependencies.length; i++){
+				dep = this.dependencies[i];
 				if (dep.executed){
 					args.push(dep.value);
 				} else {
@@ -285,7 +299,7 @@ define.assign = function(){
 
 			define.delayRequests();
 
-			return module.define(args.factory, args.deps);
+			return module.define(args);
 		},
 		delayRequests: function(){
 			define.debug.time("define.requests timeout");
