@@ -30,18 +30,21 @@ define.assign = function(){
 
 	Base.prototype.instantiate = function(){};
 
-	Base.extend = function(){
-		var Ext = function(){
-			this.instantiate.apply(this, arguments);
-		};
-		Ext.assign = this.assign;
-		Ext.assign(this);
-		Ext.prototype = Object.create(this.prototype);
-		Ext.prototype.constructor = Ext;
-		Ext.prototype.assign.apply(Ext.prototype, arguments);
+	Base.assign({
+		extend: function(){
+			var Ext = function(){
+				this.instantiate.apply(this, arguments);
+			};
+			Ext.assign = this.assign;
+			Ext.assign(this);
+			Ext.prototype = Object.create(this.prototype);
+			Ext.prototype.constructor = Ext;
+			Ext.prototype.assign.apply(Ext.prototype, arguments);
 
-		return Ext;
-	};
+			return Ext;
+		}
+		
+	});
 
 })(define, define.assign);
 
@@ -124,11 +127,12 @@ define.assign = function(){
 	enabled_logger.off = disabled_logger.off = disabled_logger;
 
 	var logger = define.logger = function(value){
-		if (typeof value === "boolean"){
-			if (value)
-				return enabled_logger;
-			else
-				return enabled_logger.off;
+		if (typeof value === "function" && value.isLogger){
+			return value;
+		} else if (value){
+			return enabled_logger;
+		} else {
+			return disabled_logger;
 		}
 	};
 
@@ -323,6 +327,7 @@ define.assign = function(){
 		get: function(id){
 			return (define.modules[id] = define.modules[id] || new define.Module(id));
 		},
+		/// "impure" ?
 		args: function(argu){
 			var arg, args = {};
 			for (var i = 0; i < argu.length; i++){
@@ -333,6 +338,8 @@ define.assign = function(){
 					args.deps = arg;
 				else if (typeof arg === "function")
 					args.factory = arg;
+				else if (typeof arg === "object")
+					assign.call(args, arg); /// NOTE: external reference to `assign()`
 				else
 					console.error("whoops");
 			}

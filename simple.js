@@ -31,18 +31,21 @@ define.assign = function(){
 
 	Base.prototype.instantiate = function(){};
 
-	Base.extend = function(){
-		var Ext = function(){
-			this.instantiate.apply(this, arguments);
-		};
-		Ext.assign = this.assign;
-		Ext.assign(this);
-		Ext.prototype = Object.create(this.prototype);
-		Ext.prototype.constructor = Ext;
-		Ext.prototype.assign.apply(Ext.prototype, arguments);
+	Base.assign({
+		extend: function(){
+			var Ext = function(){
+				this.instantiate.apply(this, arguments);
+			};
+			Ext.assign = this.assign;
+			Ext.assign(this);
+			Ext.prototype = Object.create(this.prototype);
+			Ext.prototype.constructor = Ext;
+			Ext.prototype.assign.apply(Ext.prototype, arguments);
 
-		return Ext;
-	};
+			return Ext;
+		}
+		
+	});
 
 })(define, define.assign);
 
@@ -125,11 +128,12 @@ define.assign = function(){
 	enabled_logger.off = disabled_logger.off = disabled_logger;
 
 	var logger = define.logger = function(value){
-		if (typeof value === "boolean"){
-			if (value)
-				return enabled_logger;
-			else
-				return enabled_logger.off;
+		if (typeof value === "function" && value.isLogger){
+			return value;
+		} else if (value){
+			return enabled_logger;
+		} else {
+			return disabled_logger;
 		}
 	};
 
@@ -324,6 +328,7 @@ define.assign = function(){
 		get: function(id){
 			return (define.modules[id] = define.modules[id] || new define.Module(id));
 		},
+		/// "impure" ?
 		args: function(argu){
 			var arg, args = {};
 			for (var i = 0; i < argu.length; i++){
@@ -334,6 +339,8 @@ define.assign = function(){
 					args.deps = arg;
 				else if (typeof arg === "function")
 					args.factory = arg;
+				else if (typeof arg === "object")
+					assign.call(args, arg); /// NOTE: external reference to `assign()`
 				else
 					console.error("whoops");
 			}
@@ -432,10 +439,12 @@ define("is", function(){
 
 
 // modules/Base/Base.js
-define("Base", ["is"], function(is){
+define("Base", ["is", "server"], function(is, server){
 	// for convenience
 	window.is = is;
 	window.log = define.log;
+	window.logger = define.logger;
+	window.server = server;
 
 	return define.Base;
 });
@@ -480,18 +489,34 @@ define("mixin", ["mixin/events.js"], function(events){
 
 
 // modules/Base2/Base2.js
-define("Base2", ["Base"], {log: true}, function(Base){
+define("Base2", ["Base"], 
+
+// {log: true},
+
+function(Base){
 
 	var Base2 = Base.extend({
-		log: log.off, // log is globalized by simple/modules/Base
+		log: define.logger(false),
 		assign: Base.assign,
 		instantiate: function(){}
+	}).assign({
+		config: function(instance, options){
+			if (options && is.def(options.log)){
+				// pass { log: true/false/another } into constructor as first option
+				instance.log = define.logger(options.log);
+				delete options.log;
+			} else {
+				// you could assign true/false to the prototype
+				instance.log = define.logger(instance.log); 
+			}
+		}
 	});
 
 	Base2.extend = function(){
-		var Ext = function Ext(){
+		var Ext = function Ext(o){
 			if (!(this instanceof Ext))
 				return new (Ext.bind.apply(Ext, [null].concat([].slice.call(arguments))));
+			Ext.config(this, o);
 			this.instantiate.apply(this, arguments);
 		};
 		Ext.assign = this.assign;
@@ -512,6 +537,7 @@ define("Base2", ["Base"], {log: true}, function(Base){
 define("View", ["Base2"], function(Base2){
 
 var View = Base2.extend({
+	tag: "div",
 	instantiate: function(){
 		this.constructs.apply(this, arguments);
 		this.initialize();
@@ -526,7 +552,6 @@ var View = Base2.extend({
 	render: function(){},
 	render_el: function(){
 		if (!this.el){
-			this.tag = this.tag || "div";
 			this.el = document.createElement(this.tag);
 
 			View.captor && View.captor.append(this);
@@ -675,7 +700,7 @@ return View;
 
 
 // modules/Test/Test.js
-define("Test", ["Base2", "View", "Server"], function(Base2, View){
+define("Test", ["Base2", "View"], function(Base2, View){
 
 	var stylesheet = View({tag: "link"})
 		.attr("rel", "stylesheet")
@@ -794,43 +819,25 @@ define("Test", ["Base2", "View", "Server"], function(Base2, View){
 
 
 
-// modules/Server/Server.js
-define("Server", ["Base2"], function(Base2){
+// modules/server/server.js
+define("server", function(){
+	var log = define.logger(true);
 
-	var Server = Base2.extend({
-		instantiate: function(){
-			this.constructs.apply(this, arguments);
-			this.initialize();
-		},
-		constructs: function(o){
-			if (o && is.def(o.log)){
-				if (o.log){
-					this.log = this.log.on;
-				} else {
-					this.log = this.log.off;
-				}
-			}
-		},
-		initialize: function(){
-			this.socket = new WebSocket("ws://" + window.location.host);
+	var server = new WebSocket("ws://" + window.location.host);
 
-			this.socket.addEventListener("open", function(){
-				this.log("server.socket connected");
-			}.bind(this));
+	server.addEventListener("open", function(){
+		log("server connected");
+	});
 
-			this.socket.addEventListener("message", function(e){
-				if (e.data === "reload"){
-					window.location.reload();
-				} else {
-					this.log("message from server.socket", e);
-				}
-			}.bind(this));
+	server.addEventListener("message", function(e){
+		if (e.data === "reload"){
+			window.location.reload();
+		} else {
+			log("message from server", e);
 		}
 	});
 
-	window.server = new Server({ log: true });
-
-	return Server;
+	return server;
 })
 
 
@@ -838,9 +845,9 @@ define("Server", ["Base2"], function(Base2){
 // modules/simple/simple.js
 define("simple",
 
-[ "is", "mixin", "Base2", "View", "Test", "Server"],
+[ "is", "mixin", "Base2", "View", "Test", "server"],
 
-function(is, mixin, Base2, View, Test, Server){
+function(is, mixin, Base2, View, Test, server){
 
 	window.Base = define.Base;
 	window.log = define.log;
@@ -851,9 +858,7 @@ function(is, mixin, Base2, View, Test, Server){
 	window.View = View;
 	window.Test = Test;
 
-	window.server = new Server({
-		log: true
-	});
+	window.server = server
 
 	// server.log("log");
 	// server.log.info("info");
@@ -861,6 +866,7 @@ function(is, mixin, Base2, View, Test, Server){
 	// server.log.warn("warn");
 	// server.log.error("error");
 
+	console.log("so simple");
 	return "so simple";
 });
 
