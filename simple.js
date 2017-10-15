@@ -203,11 +203,11 @@ define.assign = function(){
 			var args = this.args();
 			
 			if (args){
-				!this.dependents.length && 
+				// !this.dependents.length && 
 					this.log.group(this.id, this.deps.map(function(dep){ return dep.id }));
 				this.value = this.factory.apply(null, args);
 				this.executed = true;
-				!this.dependents.length && 
+				// !this.dependents.length && 
 					this.log.end();
 				this.finish();
 			} else {
@@ -352,6 +352,490 @@ define.assign = function(){
 
 
 
+
+
+
+// modules/is/is.js
+define("is", function(){
+
+	var is = {
+		arr: function(value){
+			return toString.call(value) === '[object Array]';
+		},
+		obj: function(value){
+			return typeof value === "object" && !is.arr(value);
+		},
+		dom: function(value){
+			return value && value.nodeType > 0;
+		},
+		el: function(value){
+			return value && value.nodeType === 1;
+		},
+		str: function(value){
+			return typeof value === "string";
+		},
+		num: function(value){
+			return typeof value === "number";
+		},
+		bool: function(value){
+			return typeof value === 'boolean';
+		},
+		fn: function(value){
+			return typeof value === 'function';
+		},
+		def: function(value){
+			return typeof value !== 'undefined';
+		},
+		undef: function(value){
+			return typeof value === 'undefined';
+		},
+		/// seems to work
+		pojo: function(value){
+			return is.obj(value) && value.constructor === Object;
+		},
+		proto: function(value){
+			return is.obj(value) && value.constructor && value.constructor.prototype === value;
+		}
+	};
+
+	return is;
+
+});
+
+
+
+// modules/Base/Base.js
+define("Base", ["is"], function(is){
+	// for convenience
+	window.is = is;
+	window.log = define.log;
+
+	return define.Base;
+});
+
+
+
+// modules/mixin/events.js
+define("mixin/events.js", function(){
+
+return {
+	on: function(event, cb){
+		this.events = this.events || {}; // init, if not already present
+		var cbs = this.events[event] = this.events[event] || [];
+		cbs.push(cb);
+		return this;
+	},
+	emit: function(event){
+		var cbs = this.events && this.events[event];
+		if (cbs && cbs.length){
+			for (var i = 0; i < cbs.length; i++){
+				cbs[i].apply(this, [].slice.call(arguments, 1));
+			}
+		} else {
+			console.warn("no events registered for", event);
+		}
+		return this;
+	}
+};
+
+});
+
+
+
+
+// modules/mixin/mixin.js
+define("mixin", ["mixin/events.js"], function(events){
+	return {
+		events: events
+	};
+});
+
+
+
+// modules/Base2/Base2.js
+define("Base2", ["Base"], function(Base){
+
+	var Base2 = Base.extend({
+		log: log.off, // log is globalized by simple/modules/Base
+		assign: Base.assign,
+		instantiate: function(){}
+	});
+
+	Base2.extend = function(){
+		var Ext = function Ext(){
+			if (!(this instanceof Ext))
+				return new (Ext.bind.apply(Ext, [null].concat([].slice.call(arguments))));
+			this.instantiate.apply(this, arguments);
+		};
+		Ext.assign = this.assign;
+		Ext.assign(this);
+		Ext.prototype = Object.create(this.prototype);
+		Ext.prototype.constructor = Ext;
+		Ext.prototype.assign.apply(Ext.prototype, arguments);
+		return Ext;
+	};
+
+	return Base2;
+
+});
+
+
+
+// modules/View/View.js
+define("View", ["Base2"], function(Base2){
+
+var View = Base2.extend({
+	instantiate: function(){
+		this.constructs.apply(this, arguments);
+		this.initialize();
+	},
+	initialize: function(){
+		// if we pass constructs that are non-pojos, they get appended
+		// in order to append, we have to render_el earlier
+		// but we don't want to always render_el before assigning pojos, because then we can't change the .tag
+		if (!this.el) this.render_el();
+		this.append(this.render);
+	},
+	render: function(){},
+	render_el: function(){
+		if (!this.el){
+			this.tag = this.tag || "div";
+			this.el = document.createElement(this.tag);
+
+			View.captor && View.captor.append(this);
+
+			// if (this.name)
+			// 	this.addClass(this.name);
+
+			// if (this.type)
+			// 	this.addClass(this.type);
+
+			if (this.classes){
+				if (is.arr(this.classes))
+					this.addClass.apply(this, this.classes);
+				else if (is.str(this.classes))
+					this.addClass.apply(this, this.classes.split(" "));
+			}
+		}
+	},
+	constructs: function(){
+		var arg;
+		for (var i = 0; i < arguments.length; i++){
+			arg = arguments[i];
+			if (is.pojo(arg)){
+				this.assign(arg);
+			} else {
+				if (!this.el) this.render_el();
+				this.append(arg);
+			}
+		}
+	},
+	set: function(){
+		this.empty();
+		this.append.apply(this, arguments);
+		return this;
+	},
+	append: function(){
+		var arg;
+		for (var i = 0; i < arguments.length; i++){
+			arg = arguments[i];
+			if (arg && arg.el){
+				arg.parent = this;
+				this.el.appendChild(arg.el);
+			} else if (is.pojo(arg)){
+				this.append_pojo(arg);
+			} else if (is.arr(arg)){
+				this.append.apply(this, arg);
+			} else if (is.fn(arg)){
+				this.append_fn(arg);
+			} else {
+				// DOM, str, etc
+				this.el.append(arg);
+			}
+		}
+		return this;
+	},
+	append_fn: function(fn){
+		View.set_captor(this);
+		var value = fn.call(this, this);
+		View.restore_captor();
+
+		if (is.def(value))
+			this.append(value);
+	},
+	append_pojo: function(pojo){
+		var value, view;
+		for (var prop in pojo){
+			value = pojo[prop];
+			if (value && value.el){
+				view = value;
+			} else {
+				view = View().append(value);
+			}
+			this[prop] = view
+				.addClass(prop)
+				.appendTo(this);
+		}
+	},
+	appendTo: function(view){
+		view.append(this);
+		return this;
+	},
+	addClass: function(){
+		for (var i = 0; i < arguments.length; i++){
+			this.el.classList.add(arguments[i]);
+		}
+		return this;
+	},
+	attr: function(name, value){
+		this.el.setAttribute(name, value);
+		return this;
+	},
+	click: function(cb){
+		this.el.addEventListener("click", cb.bind(this));
+		return this;
+	},
+	removeClass: function(className){
+		this.el.classList.remove(className);
+		return this;
+	},
+	hasClass: function(className){
+		return this.el.classList.contains(className);
+	},
+	empty: function(){
+		this.el.innerHTML = "";
+		return this;
+	},
+	focus: function(){
+		this.el.focus();
+		return this;
+	},
+	show: function(){
+		this.el.style.display = "";
+		return this;
+	},
+	style: function(){
+		return getComputedStyle(this.el);
+	},
+	toggle: function(){
+		if (this.style().display === "none")
+			return this.show();
+		else {
+			return this.hide();
+		}
+	},
+	hide: function(){
+		this.el.style.display = "none";
+		return this;
+	}
+});
+
+View.assign({
+	previous_captors: [],
+	set_captor: function(view){
+		this.previous_captors.push(this.captor);
+		this.captor = view;
+	},
+	restore_captor: function(){
+		this.captor = this.previous_captors.pop();
+	}
+});
+
+return View;
+
+});
+
+
+
+// modules/Test/Test.js
+define("Test", ["Base2", "View", "Server"], function(Base2, View){
+
+	var stylesheet = View({tag: "link"})
+		.attr("rel", "stylesheet")
+		.attr("href", "/" + define.moduleRoot + "/Test/Test.css");
+	document.head.appendChild(stylesheet.el);
+
+
+
+	var TestView = View.extend({
+
+	});
+
+	var body = View({
+		el: document.body
+	});
+
+	var Test = Base2.extend({
+		instantiate: function(name, fn){
+			this.name = name;
+			this.fn = fn;
+
+			this.pass = 0;
+			this.fail = 0;
+
+			this.container = this.container || body;
+
+			this.initialize();
+		},
+		initialize: function(){
+			this.render();
+			this.exec();
+		},
+		render: function(){
+			this.view = View().addClass('test').append({
+				bar: View(this.label()).click(this.activate.bind(this)),
+				content: View(),
+				footer: View()
+			});
+
+			if (!this.view.parent)
+				this.view.appendTo(this.container);
+		},
+		activate: function(){
+			window.location.hash = this.name;
+			window.location.reload();
+		},
+		label: function(){
+			return (this.match() ? "#" : "") + this.name;
+		},
+		exec: function(){
+			if (this.shouldRun()){
+				this.view.addClass("active");
+				console.group(this.label());
+				
+				Test.set_captor(this);
+
+				this.view.content.append(function(){
+					this.fn();
+				}.bind(this));
+
+				Test.restore_captor();
+				
+				if (this.pass > 0)
+					this.view.footer.append("Passed " + this.pass);
+				if (this.fail > 0)
+					this.view.footer.append("Failed " + this.fail);
+				console.groupEnd();
+			}
+		},
+		assert: function(value){
+			if (value){
+				this.pass++;
+			} else {
+				console.error("Assertion failed");
+				this.fail++;
+			}
+		},
+		shouldRun: function(){
+			return !window.location.hash || this.match();
+		},
+		match: function(){
+			return window.location.hash.substring(1) === this.name;
+		}
+	});
+
+	Test.assign({
+		previous_captors: [],
+		set_captor: function(view){
+			this.previous_captors.push(this.captor);
+			this.captor = view;
+		},
+		restore_captor: function(){
+			this.captor = this.previous_captors.pop();
+		},
+		assert: function(value){
+			if (Test.captor)
+				Test.captor.assert(value);
+			else
+				console.error("whoops");
+		},
+		controls: function(){
+			var controls = View().addClass("test-controls").append({
+				reset: View({tag:"button"}, "reset").click(function(){
+					Test.reset();
+				})
+			});
+			document.body.appendChild(controls.el);
+		},
+		reset: function(){
+			window.location.href = window.location.href.split('#')[0];
+		}
+	});
+
+	return Test;
+});
+
+
+
+// modules/Server/Server.js
+define("Server", ["Base2"], function(Base2){
+
+	var Server = Base2.extend({
+		instantiate: function(){
+			this.constructs.apply(this, arguments);
+			this.initialize();
+		},
+		constructs: function(o){
+			if (o && is.def(o.log)){
+				if (o.log){
+					this.log = this.log.on;
+				} else {
+					this.log = this.log.off;
+				}
+			}
+		},
+		initialize: function(){
+			this.socket = new WebSocket("ws://" + window.location.host);
+
+			this.socket.addEventListener("open", function(){
+				this.log("server.socket connected");
+			}.bind(this));
+
+			this.socket.addEventListener("message", function(e){
+				if (e.data === "reload"){
+					window.location.reload();
+				} else {
+					this.log("message from server.socket", e);
+				}
+			}.bind(this));
+		}
+	});
+
+	window.server = new Server({ log: true });
+
+	return Server;
+})
+
+
+
+// modules/simple/simple.js
+define("simple",
+
+[ "is", "mixin", "Base2", "View", "Test", "Server"],
+
+function(is, mixin, Base2, View, Test, Server){
+
+	window.Base = define.Base;
+	window.log = define.log;
+
+	window.is = is;
+	window.mixin = mixin;
+	window.Base2 = Base2;
+	window.View = View;
+	window.Test = Test;
+
+	window.server = new Server({
+		log: true
+	});
+
+	// server.log("log");
+	// server.log.info("info");
+	// server.log.debug("debug");
+	// server.log.warn("warn");
+	// server.log.error("error");
+
+	return "so simple";
+});
 
 
 
