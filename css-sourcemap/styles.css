@@ -1,0 +1,10 @@
+body {
+	padding: 20px;
+	background: blue;
+}
+
+body.test {
+    background:  purple;
+}
+
+body.test.test2.test2b {}
