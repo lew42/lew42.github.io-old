@@ -1,0 +1,40 @@
+.arial {
+	font-family: Arial,sans-serif;
+}
+
+.arial-black {
+	font-family: "Arial Black","Arial Bold",Arial,sans-serif;
+}
+
+.arial-narrow {
+	font-family: "Arial Narrow",Arial,sans-serif;
+}
+
+.trebuchet {
+	font-family: "Trebuchet MS",Arial,sans-serif;
+}
+
+.tahoma {
+	font-family: Tahoma,Verdana,Arial,sans-serif;
+}
+
+.verdana {
+	font-family: Verdana,Tahoma,Arial,sans-serif;
+}
+
+/* SERIF */
+.times {
+	font-family: TimesNewRoman,"Times New Roman",Georgia,serif;
+}
+
+.palatino {
+	font-family: Palatino,Georgia,serif;
+}
+
+.georgia {
+	font-family: Georgia,Palatino,serif;
+}
+
+.courier {
+	font-family: "Courier New",Courier,monospace;
+}

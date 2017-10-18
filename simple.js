@@ -213,6 +213,12 @@ define.assign = function(){
 				document.head.appendChild(this.script);
 			}
 		},
+		path: function(){
+			var a = document.createElement("a");
+			a.href = this.script.src;
+			if (this.requested){
+			}
+		},
 		exec: function(){
 			this.debug.group("ping", this.id);
 
@@ -236,7 +242,7 @@ define.assign = function(){
 			
 			if (args){
 				this.log.group(this.id, this.dependencies.map(function(dep){ return dep.id }));
-				this.value = this.factory.apply(null, args);
+				this.value = this.factory.apply(this, args);
 				this.executed = true;
 				// !this.dependents.length && 
 				this.log.end();
@@ -647,6 +653,15 @@ var View = Base2.extend({
 		this.el.addEventListener("click", cb.bind(this));
 		return this;
 	},
+	on: function(event, cb){
+		var bound = cb.bind(this);
+		this.el.addEventListener(event, bound);
+		return bound; // so you can remove it
+	},
+	off: function(event, cb){
+		this.el.removeEventListener(event, cb);
+		return this; //?
+	},
 	removeClass: function(className){
 		this.el.classList.remove(className);
 		return this;
@@ -679,6 +694,10 @@ var View = Base2.extend({
 	hide: function(){
 		this.el.style.display = "none";
 		return this;
+	},
+	remove: function(){
+		this.el.parentNode.removeChild(this.el);
+		return this;
 	}
 });
 
@@ -704,7 +723,7 @@ define("Test", ["Base2", "View"], function(Base2, View){
 
 	var stylesheet = View({tag: "link"})
 		.attr("rel", "stylesheet")
-		.attr("href", "/" + define.moduleRoot + "/Test/Test.css");
+		.attr("href", "/simple/modules/Test/Test.css");
 	document.head.appendChild(stylesheet.el);
 
 
@@ -730,15 +749,22 @@ define("Test", ["Base2", "View"], function(Base2, View){
 			this.initialize();
 		},
 		initialize: function(){
-			this.render();
-			this.exec();
+			if (this.shouldRun())
+				this.render();
 		},
 		render: function(){
 			this.view = View().addClass('test').append({
 				bar: View(this.label()).click(this.activate.bind(this)),
-				content: View(),
+				content: View(this.exec.bind(this)),
 				footer: View()
 			});
+
+			this.view.addClass("active");
+
+			if (this.pass > 0)
+				this.view.footer.append("Passed " + this.pass);
+			if (this.fail > 0)
+				this.view.footer.append("Failed " + this.fail);
 
 			if (!this.view.parent)
 				this.view.appendTo(this.container);
@@ -751,24 +777,15 @@ define("Test", ["Base2", "View"], function(Base2, View){
 			return (this.match() ? "#" : "") + this.name;
 		},
 		exec: function(){
-			if (this.shouldRun()){
-				this.view.addClass("active");
-				console.group(this.label());
-				
-				Test.set_captor(this);
+			console.group(this.label());
+			
+			Test.set_captor(this);
 
-				this.view.content.append(function(){
-					this.fn();
-				}.bind(this));
+				// run the test
+				this.fn();
 
-				Test.restore_captor();
-				
-				if (this.pass > 0)
-					this.view.footer.append("Passed " + this.pass);
-				if (this.fail > 0)
-					this.view.footer.append("Failed " + this.fail);
-				console.groupEnd();
-			}
+			Test.restore_captor();
+			console.groupEnd();
 		},
 		assert: function(value){
 			if (value){

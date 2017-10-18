@@ -1,1 +1,7 @@
-body { background: #7b7bb2; }
+@import "normalize.css";
+@import "fonts.css";
+
+body {
+	font-family: "Trebuchet MS",Arial,sans-serif;
+	font-size: 0.9em;
+}

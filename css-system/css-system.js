@@ -1,15 +1,15 @@
 define(["font-awesome.js"], function(){
-	console.log("hmm?");
+
 	var Stylesheet = Base2.extend({
 		instantiate: function(){
 			this.str = "";
 		},
 		select: function(selector, strs){
-			this.str += selector + "{";
+			this.str += selector + " { ";
 			for (var i = 0; i < strs.length; i++){
-				this.str += strs[i];
+				this.str += strs[i] + " ";
 			}
-			this.str += "}\r\n";
+			this.str += "} ";
 			return this;
 		},
 		inject: function(){
@@ -22,15 +22,17 @@ define(["font-awesome.js"], function(){
 	var styles = Stylesheet();
 
 	styles
-		.select(".item", "")
+		.select(".item", [""])
 		.select(".item1", [
-			"background: #eee;",
+			"background: #fff;",
 			"padding: 1em;"
-		]).select(".item2", "color: blue;")
+		]).select(".item2", ["color: blue;"])
 	.inject();
 
-	var page = View(function(){
 
+	/// PAGE
+	var page = View(function(){
+		this.addClass("page-css-system");
 
 		var Item = View.extend({
 			classes: "item"
@@ -44,7 +46,7 @@ define(["font-awesome.js"], function(){
 
 
 	});
-console.log("hmm");
+
 	document.addEventListener("DOMContentLoaded", function(){
 		console.log("append");
 		document.body.appendChild(page.el);
