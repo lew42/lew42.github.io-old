@@ -1,7 +1,56 @@
 @import "normalize.css";
 @import "fonts.css";
 
+/* 
+https://www.paulirish.com/2012/box-sizing-border-box-ftw/
+apply a natural box layout model to all elements, but allowing components to change */
+html {
+ 	box-sizing: border-box;
+ 	.palatino;
+}
+*, *:before, *:after {
+	box-sizing: inherit;
+}
+
 body {
 	font-family: "Trebuchet MS",Arial,sans-serif;
-	font-size: 0.9em;
+}
+
+
+/*
+html font-size prescribes the 'rem' unit
+body font-size prescribes the 'em' unit,
+	but 'em's also adapt to parent font-size
+*/
+
+html {
+	font-size: 5px;
+}
+
+@media (min-width: 309px) {
+  html {
+    font-size: 1.618034vw;
+  }
+}
+
+@media (min-width: 1730px) {
+  html {
+    font-size: 28px;
+  }
+}
+
+body {
+	font-size: 13px;
+}
+
+@media (min-width: 803px) {
+  body {
+    font-size: 1.618034vw;
+  }
+}
+
+@media (min-width: 1174px) {
+  body {
+    font-size: 19px;
+  }
 }
