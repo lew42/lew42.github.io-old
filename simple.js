@@ -568,12 +568,7 @@ var View = Base2.extend({
 			// if (this.type)
 			// 	this.addClass(this.type);
 
-			if (this.classes){
-				if (is.arr(this.classes))
-					this.addClass.apply(this, this.classes);
-				else if (is.str(this.classes))
-					this.addClass.apply(this, this.classes.split(" "));
-			}
+			this.classes && this.addClass(this.classes);
 		}
 	},
 	constructs: function(){
@@ -627,6 +622,9 @@ var View = Base2.extend({
 			value = pojo[prop];
 			if (value && value.el){
 				view = value;
+			} else if (!value){
+				// false, undefined, or otherwise falsy
+				continue;
 			} else {
 				view = View().append(value);
 			}
@@ -640,8 +638,15 @@ var View = Base2.extend({
 		return this;
 	},
 	addClass: function(){
+		var arg;
 		for (var i = 0; i < arguments.length; i++){
-			this.el.classList.add(arguments[i]);
+			arg = arguments[i];
+			if (is.arr(arg))
+				this.addClass.apply(this, arg);
+			else if (arg.indexOf(" ") > -1)
+				this.addClass.apply(this, arg.split(" "));
+			else
+				this.el.classList.add(arg);
 		}
 		return this;
 	},
@@ -874,6 +879,13 @@ function(is, mixin, Base2, View, Test, server){
 	window.Base2 = Base2;
 	window.View = View;
 	window.Test = Test;
+
+	["h1", "h2", "h3", "p", "section", "aside", "article", "ul", 
+		"li", "ol", "nav", "span", "a", "em", "strong"].forEach(function(tag){
+		window[tag] = View.extend({
+			tag: tag
+		});
+	});
 
 	window.server = server
 

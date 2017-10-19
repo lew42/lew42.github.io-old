@@ -1,0 +1,24 @@
+.grid {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.grid.one > *, .grid > .full.full {
+	width: 100%;
+}
+
+.grid.two > *, .grid > .half {
+	width: 50%;
+}
+
+.grid.three > *, .grid > .third {
+	width: 33.3333%;
+}
+
+.grid > .thirds {
+	width: 66.6666%;
+}
+
+.test .grid > * {
+	background: #ffd1d1;
+}

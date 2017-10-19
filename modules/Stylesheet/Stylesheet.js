@@ -3,11 +3,13 @@ define("Stylesheet", function(){
 	var Stylesheet = Base2.extend({
 		instantiate: function(){
 			this.str = "";
+
+			this.assign.apply(this, arguments);
 		},
 		select: function(selector, strs){
 			this.str += selector + " { ";
 			for (var i = 0; i < strs.length; i++){
-				this.str += strs[i] + " ";
+				this.str += strs[i] + "; ";
 			}
 			this.str += "} ";
 			return this;
@@ -18,11 +20,11 @@ define("Stylesheet", function(){
 			document.head.appendChild(this.el);
 		},
 		request: function(url){
-			this.el = document.createElement("link");
-			this.el.setAttribute("rel", "stylesheet");
-			this.el.setAttribute("href", url);
+			this.link = document.createElement("link");
+			this.link.setAttribute("rel", "stylesheet");
+			this.link.setAttribute("href", url);
 
-			document.head.appendChild(this.el);
+			document.head.appendChild(this.link);
 		}
 	});
 
