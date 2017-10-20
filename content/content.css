@@ -1,0 +1,58 @@
+.xs {
+	font-size: 0.5em;
+}
+
+.s {
+	font-size: 0.75em;
+}
+
+.m.m.m {
+	font-size: 1em;
+}
+
+.reset {
+	font-size: 16px;
+}
+
+.l {
+	font-size: 1.5em;
+}
+
+.xl {
+	font-size: 2em;
+}
+
+
+.padded {
+	padding: 1em;
+}
+
+.small-padding {
+	padding: 0.75em;
+}
+
+.content > * {
+	margin: 1em 0;
+}
+
+.content > *:first-child {
+	margin-top: 0;
+}
+
+.content > *:last-child {
+	margin-bottom: 0;
+}
+
+.content > .full {
+	margin-left: -1em;
+	margin-right: -1em;
+}
+
+.content > .overflow {
+	margin-left: -1.5em;
+	margin-right: -1.5em;
+}
+
+.paper {
+	background: white;
+}

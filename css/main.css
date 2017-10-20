@@ -21,10 +21,9 @@ body {
 html font-size prescribes the 'rem' unit
 body font-size prescribes the 'em' unit,
 	but 'em's also adapt to parent font-size
-*/
 
 html {
-	font-size: 5px;
+  font-size: 5px;
 }
 
 @media (min-width: 309px) {
@@ -40,7 +39,7 @@ html {
 }
 
 body {
-	font-size: 13px;
+  font-size: 13px;
 }
 
 @media (min-width: 803px) {
@@ -54,3 +53,4 @@ body {
     font-size: 19px;
   }
 }
+*/
