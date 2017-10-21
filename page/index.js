@@ -1,27 +1,24 @@
 define(
 
-// id
-"/page/index.js",
-
 // dependencies
 [	
 	// imports
-	"is", 
-	"View/", 
-	"Stylesheet/",
+	"Stylesheet",
 
 	// requires 
-	"font-awesome"
+	"font-awesome.js"
 ],
 
-function(is, View, Stylesheet){
+function(Stylesheet){
 
 	var styles = Stylesheet();
-
-	styles.select("selector", "css")
-	styles.inject();
+	// styles.request("page.css");
+	// styles.select("selector", ["css"]);
+	// styles.inject();
 
 	var page = View(function(){
+
+
 
 	}).addClass("page");
 
