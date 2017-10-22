@@ -20,6 +20,6 @@
 }
 
 .test .grid > * {
-	background: #ffd1d1;
-	border: 1px solid rgba(0,0,0,0.2);
+	/* background: #ffd1d1; */
+	/* border: 1px solid rgba(0,0,0,0.2); */
 }
