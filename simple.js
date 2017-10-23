@@ -599,6 +599,8 @@ var View = Base2.extend({
 				this.el.appendChild(arg.el);
 			} else if (is.pojo(arg)){
 				this.append_pojo(arg);
+			} else if (is.obj(arg)){
+				this.append_obj(arg);
 			} else if (is.arr(arg)){
 				this.append.apply(this, arg);
 			} else if (is.fn(arg)){
@@ -620,23 +622,86 @@ var View = Base2.extend({
 	},
 	append_pojo: function(pojo){
 		var value, view;
-		for (var prop in pojo){
-			value = pojo[prop];
-			if (value && value.el){
-				view = value;
-			} else if (!value){
-				// false, undefined, or otherwise falsy
-				continue;
-			} else {
-				view = View().append(value);
+		if (pojo.path){
+			this.append_path(pojo);
+		} else {
+			for (var prop in pojo){
+				this.append_prop(prop, pojo[prop]);
 			}
-			this[prop] = view
-				.addClass(prop)
-				.appendTo(this);
 		}
 	},
+	append_obj: function(obj){
+		if (obj.render){
+			this.append(obj.render())
+		} else {
+			console.warn("not sure here");
+		}
+	},
+	append_prop: function(prop, value){
+		if (value && value.el){
+			view = value;
+		} else if (!value){
+			// false, undefined, or otherwise falsy
+			// why?  why not append value.toString() ?
+			/*
+			if you: render(){ 
+				this.append({
+					icon: this.icon
+				});
+			}, and then you set Thing({ icon: false }),
+			you don't really want to append "false",
+			you want to append nothing...
+			*/
+			return this;
+		} else {
+			view = View().append(value);
+		}
+
+		this[prop] = view
+			.addClass(prop)
+			.appendTo(this);
+
+		return this;
+	},
+	append_path: function(path){
+		if (is.obj(path) && path.path){
+			if (path.target){
+				this.path(path.target).append(this.path(path.path));
+			} else {
+				this.append(this.path(path.path));
+			}
+		}
+
+		return this;
+	},
+	path: function(path){
+		var parts, value = this;
+		if (is.str(path)){
+			parts = path.split(".");
+		} else if (is.arr(path)) {
+			parts = path;
+		}
+
+		if (parts[0] === ""){
+			parts = parts.slice(1);
+		}
+
+		if (parts[parts.length - 1] === ""){
+			console.warn("forgot how to do this");
+		}
+
+		for (var i = 0; i < parts.length; i++){
+			value = value[parts[i]];
+		}
+
+		return value;
+	},
 	appendTo: function(view){
-		view.append(this);
+		if (is.dom(view)){
+			view.appendChild(this.el);
+		} else {
+			view.append(this);
+		}
 		return this;
 	},
 	addClass: function(){
