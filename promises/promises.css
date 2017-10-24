@@ -5,3 +5,6 @@
 .grid.rejected {
 	border: 1px solid red;
 }
+
+.promise { padding: 1em; background: #fff; }
+.promise .btn { background: #ddd; margin-left: 5px;}

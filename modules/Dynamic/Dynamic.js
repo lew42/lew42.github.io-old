@@ -28,6 +28,8 @@ define("Dynamic", ["Stylesheet"], function(Stylesheet){
 				this.log("not found");
 				this.data = { length: 0 };
 				this.save();
+			} else {
+				this.load_data();
 			}
 
 			this.on("change", function(){
@@ -36,6 +38,14 @@ define("Dynamic", ["Stylesheet"], function(Stylesheet){
 			}.bind(this));
 
 			this.log.end();
+		},
+		load_data: function(){
+			if (this.data.initial_instructions){
+				this.run(this.data.initial_instructions);
+			}
+		},
+		run: function(){
+			
 		},
 		path: function(path){
 			var parts, value = this;

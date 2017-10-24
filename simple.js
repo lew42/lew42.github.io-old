@@ -861,9 +861,11 @@ define("Test", ["Base2", "View"], function(Base2, View){
 		render: function(){
 			this.view = View().addClass('test').append({
 				bar: View(this.label()).click(this.activate.bind(this)),
-				content: View(this.exec.bind(this)),
+				content: View(),
 				footer: View()
 			});
+
+			this.view.content.append(this.exec.bind(this));
 
 			this.view.addClass("active");
 
