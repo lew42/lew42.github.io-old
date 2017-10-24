@@ -171,6 +171,8 @@ define.assign = function(){
 		define: function(args){
 			this.assign(args);
 			this.fixLoggers();
+			// this.log = logger(this.log);
+			// this.debug = logger(this.debug); //?
 
 			this.debug.group("define", this.id, this.deps || []);
 
@@ -334,7 +336,6 @@ define.assign = function(){
 		get: function(id){
 			return (define.modules[id] = define.modules[id] || new define.Module(id));
 		},
-		/// "impure" ?
 		args: function(argu){
 			var arg, args = {};
 			for (var i = 0; i < argu.length; i++){
@@ -347,6 +348,8 @@ define.assign = function(){
 					args.factory = arg;
 				else if (typeof arg === "object")
 					assign.call(args, arg); /// NOTE: external reference to `assign()`
+				else if (typeof arg === "undefined")
+					continue;
 				else
 					console.error("whoops");
 			}
@@ -392,6 +395,29 @@ define.assign = function(){
 
 
 
+
+
+
+// modules/docReady/docReady.js
+console.timeEnd("docReady");
+console.time("document.ready");
+define("docReady", function(){
+	
+	var ready = function(){
+		define("document.ready", function(){
+			console.timeEnd("document.ready");
+			return true;
+		});
+	};
+
+
+	if (/comp|loaded/.test(document.readyState)){
+		console.warn("already ready?");
+		ready();
+	} else {
+		document.addEventListener("DOMContentLoaded", ready);
+	}
+});
 
 
 
@@ -621,7 +647,6 @@ var View = Base2.extend({
 			this.append(value);
 	},
 	append_pojo: function(pojo){
-		var value, view;
 		if (pojo.path){
 			this.append_path(pojo);
 		} else {
@@ -638,6 +663,7 @@ var View = Base2.extend({
 		}
 	},
 	append_prop: function(prop, value){
+		var view;
 		if (value && value.el){
 			view = value;
 		} else if (!value){
@@ -861,11 +887,9 @@ define("Test", ["Base2", "View"], function(Base2, View){
 		render: function(){
 			this.view = View().addClass('test').append({
 				bar: View(this.label()).click(this.activate.bind(this)),
-				content: View(),
+				content: View(this.exec.bind(this)),
 				footer: View()
 			});
-
-			this.view.content.append(this.exec.bind(this));
 
 			this.view.addClass("active");
 
@@ -975,7 +999,7 @@ define("server", function(){
 // modules/simple/simple.js
 define("simple",
 
-[ "is", "mixin", "Base2", "View", "Test", "server"],
+[ "is", "mixin", "Base2", "View", "Test", "server", "docReady"],
 
 function(is, mixin, Base2, View, Test, server){
 

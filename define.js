@@ -170,6 +170,8 @@ define.assign = function(){
 		define: function(args){
 			this.assign(args);
 			this.fixLoggers();
+			// this.log = logger(this.log);
+			// this.debug = logger(this.debug); //?
 
 			this.debug.group("define", this.id, this.deps || []);
 
@@ -333,7 +335,6 @@ define.assign = function(){
 		get: function(id){
 			return (define.modules[id] = define.modules[id] || new define.Module(id));
 		},
-		/// "impure" ?
 		args: function(argu){
 			var arg, args = {};
 			for (var i = 0; i < argu.length; i++){
@@ -346,6 +347,8 @@ define.assign = function(){
 					args.factory = arg;
 				else if (typeof arg === "object")
 					assign.call(args, arg); /// NOTE: external reference to `assign()`
+				else if (typeof arg === "undefined")
+					continue;
 				else
 					console.error("whoops");
 			}
