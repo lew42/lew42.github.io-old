@@ -299,7 +299,7 @@ define.assign = function(){
 
 // 6_define.js
 ;(function(define, assign, Module, log){
-	 
+	
 	define.assign({
 		Module: Module,
 		log: log,
