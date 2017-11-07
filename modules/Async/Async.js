@@ -22,6 +22,12 @@ define("Async", ["Stylesheet"], function(Stylesheet){
 				}
 			}
 		},
+		exec: function(){
+			// using a.call(null, arg) is a little wonky
+			// a.exec(a, r, g, s) is better
+			// and a.call(null, arg) or a.call(null, args) could still point to .exec
+			// and .exec could be orp, that defaults to this.exec_cbs(), for example
+		},
 		/*
 		a.then(b) returns c
 		if b() returns d,
