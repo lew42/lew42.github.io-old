@@ -1,4 +1,4 @@
-define("Stylesheet", function(){
+Module("Stylesheet", function(){
 
 	var Stylesheet = Base2.extend({
 		instantiate: function(){

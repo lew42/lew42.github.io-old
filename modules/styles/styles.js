@@ -1,4 +1,4 @@
-define("styles", function(){
+Module("styles", function(){
 	var main = View({tag: "link"})
 		.attr("rel", "stylesheet")
 		.attr("href", "/css/main.css");

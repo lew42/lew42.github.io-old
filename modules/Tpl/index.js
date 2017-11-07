@@ -1,4 +1,4 @@
-define(
+Module(
 
 // id
 "/modules/Tpl/index.js",

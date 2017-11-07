@@ -1,4 +1,4 @@
-define(["Grid", "Grid/Grid.test.js"], function(Grid){
+Module(["Grid", "Grid/Grid.test.js"], function(Grid){
 	var testPage = View(function(){
 		View({tag: "h1"}, "Grid Tests");
 		Grid.test(Grid);

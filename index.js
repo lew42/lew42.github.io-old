@@ -1,4 +1,4 @@
-define("index.js", [   "styles", "Grid"], function(){
+Module(["styles", "Grid"], function(){
 	var page = View(function(){
 		View("document.documentElement.clientWidth ", document.documentElement.clientWidth);
 		View("window.innerWidth ", window.innerWidth);

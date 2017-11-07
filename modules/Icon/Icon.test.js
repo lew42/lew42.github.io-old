@@ -1,4 +1,4 @@
-define(["Icon"], function(Icon){
+Module(["Icon"], function(Icon){
 
 	Icon.test = function(Icon){
 		Test.controls();

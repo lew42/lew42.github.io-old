@@ -1,4 +1,4 @@
-define("Lorem", function(){
+Module("Lorem", function(){
 
 
 	//Create a class named Lorem and constructor

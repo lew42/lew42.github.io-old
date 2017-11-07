@@ -1,4 +1,4 @@
-define("/styles/lists/index.js", ["is", "View/", "Stylesheet/", "font-awesome"], function(is, View, Stylesheet){
+Module("/styles/lists/index.js", ["is", "View/", "Stylesheet/", "font-awesome"], function(is, View, Stylesheet){
 
 	var styles = Stylesheet();
 

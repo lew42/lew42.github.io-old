@@ -1,4 +1,4 @@
-define("Request", function(){
+Module("Request", function(){
 
 
 	var Request = Base2.extend({

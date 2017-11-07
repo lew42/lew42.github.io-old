@@ -1,4 +1,4 @@
-define("Page", ["Stylesheet"], function(Stylesheet){
+Module("Page", ["Stylesheet"], function(Stylesheet){
 	var styles = Stylesheet();
 	styles.request("/modules/Page/Page.css");
 

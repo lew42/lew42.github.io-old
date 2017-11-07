@@ -1,4 +1,4 @@
-define(["Async"], function(Async){
+Module(["Async"], function(Async){
 
 
 	var Q = Base2.extend({

@@ -1,4 +1,4 @@
-define("Dynamic", ["Stylesheet"], function(Stylesheet){
+Module("Dynamic", ["Stylesheet"], function(Stylesheet){
 	var styles = Stylesheet();
 	styles.request("/modules/Dynamic/Dynamic.css");
 

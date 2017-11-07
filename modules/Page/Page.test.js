@@ -1,4 +1,4 @@
-define(["Page"], function(Page){
+Module(["Page"], function(Page){
 
 	Page.test = function(Page){
 		Test("one", function(){

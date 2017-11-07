@@ -1,1 +1,1 @@
-define("/styles/index.js", [""])
+// Module("/styles/index.js", [""])

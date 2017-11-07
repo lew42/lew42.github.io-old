@@ -1,4 +1,4 @@
-define("Template", ["Stylesheet"], function(Stylesheet){
+Module("Template", ["Stylesheet"], function(Stylesheet){
 	var styles = Stylesheet();
 	styles.request("/modules/Template/Template.css");
 

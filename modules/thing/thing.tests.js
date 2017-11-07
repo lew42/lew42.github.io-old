@@ -1,4 +1,4 @@
-define(["thing/", "test/", "View/"], function(Thing, Test, View){
+Module(["thing/", "test/", "View/"], function(Thing, Test, View){
 
 var assert = Test.assert;
 

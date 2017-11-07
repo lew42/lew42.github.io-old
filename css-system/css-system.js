@@ -1,4 +1,4 @@
-define(["font-awesome.js"], function(){
+Module(["font-awesome.js"], function(){
 
 	var Stylesheet = Base2.extend({
 		instantiate: function(){

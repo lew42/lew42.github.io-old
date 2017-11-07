@@ -1,4 +1,4 @@
-define(
+Module(
 	
 // dependencies
 [	

@@ -1,4 +1,4 @@
-define(["Request"], function(Request){
+Module(["Request"], function(Request){
 	// var s1 = View({tag: "style"});
 	// var r = Request({
 	// 	url: "css-sourcemap.css",

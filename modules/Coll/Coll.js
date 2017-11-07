@@ -1,4 +1,4 @@
-define("Coll", ["Stylesheet"], function(Stylesheet){
+Module("Coll", ["Stylesheet"], function(Stylesheet){
 	var styles = Stylesheet();
 	styles.request("/modules/Coll/Coll.css");
 

@@ -1,4 +1,4 @@
-define("Grid", ["Stylesheet", "Icon", "Lorem"], function(Stylesheet, Icon){
+Module("Grid", ["Stylesheet", "Icon", "Lorem"], function(Stylesheet, Icon){
 
 
 	// .grid-spacing(@n, @y, @x){

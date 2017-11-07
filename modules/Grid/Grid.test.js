@@ -1,4 +1,4 @@
-define(["Grid"], function(Grid){
+Module(["Grid"], function(Grid){
 
 	Grid.test = function(Grid){
 		Test.controls();

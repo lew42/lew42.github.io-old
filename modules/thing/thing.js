@@ -1,4 +1,4 @@
-define("thing/", ["View/"], function(View){
+Module("thing/", ["View/"], function(View){
 
 var Thing = 123;
 

@@ -1,4 +1,5 @@
-define(["Stylesheet", "Lorem", "Grid"], function(Stylesheet){
+Module(["Stylesheet", "Lorem", "Grid"], function(require){
+	var Stylesheet = require("Stylesheet");
 	Stylesheet().request("content.css");
 
 	var page = View(function(){

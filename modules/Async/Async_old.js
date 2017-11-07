@@ -1,4 +1,4 @@
-define("Async", ["Stylesheet"], function(Stylesheet){
+Module("Async", ["Stylesheet"], function(Stylesheet){
 	var styles = Stylesheet();
 	styles.request("/modules/Async/Async.css");
 

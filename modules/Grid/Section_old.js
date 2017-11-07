@@ -1,4 +1,4 @@
-define("Section", ["Icon"], function(Icon){
+Module("Section", ["Icon"], function(Icon){
 	var Section = View.extend({
 		render: function(){
 			// this.on("mouseenter", function(){

@@ -1,4 +1,4 @@
-define(["Template"], function(Template){
+Module(["Template"], function(Template){
 
 	Template.test = function(Template){
 
