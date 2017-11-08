@@ -205,13 +205,15 @@ Base.extend = function(o){
 };
 
 var Module = window.Module = Base.extend({
+	name: "Module",
+	base: "modules",
 	debug: logger(false),
 	set_debug: function(value){
 		this.debug = logger(value);
 	},
 	instantiate: function(token){
 		var id = typeof token === "string" ?
-			Module.resolve(token) : false;
+			this.resolve(token) : false;
 
 		var cached = id && Module.get(id);
 
@@ -225,6 +227,24 @@ var Module = window.Module = Base.extend({
 			this.initialize();
 			return this;
 		}
+	},
+	resolve: function(token){
+		// mimic ending?
+		var parts = token.split("/");
+
+		// "path/thing/" --> "path/thing/thing.js"
+		if (token[token.length-1] === "/"){
+			token = token + parts[parts.length-2] + ".js";
+		// last part doesn't contain a "."
+		// "path/thing" --> "path/thing/thing.js"
+		} else if (parts[parts.length-1].indexOf(".") < 0){
+			token = token + "/" + parts[parts.length-1] + ".js";
+		}
+
+		if (token[0] !== "/")
+			token = "/" + Module.base + "/" + token;
+
+		return token; 
 	},
 	initialize: function(){
 		var a;
@@ -255,7 +275,7 @@ var Module = window.Module = Base.extend({
 				this.define();
 
 			// no factory function to define with
-			} else if (!this.queued) {
+			} else if (!this.queued && !this.requested) {
 				// queue up the request
 				this.queued = setTimeout(this.request.bind(this), 0);
 				this.debug("Queued Module('"+this.id+"')");
@@ -274,6 +294,8 @@ var Module = window.Module = Base.extend({
 		if (this.queued)
 			clearTimeout(this.queued);
 
+		this.defined = this.factory;
+
 		if (this.deps){
 			this.debug("Defined Module('"+this.id+"', [" + this.deps.join(", ")+ "])");
 			this.ready.resolve(
@@ -284,9 +306,6 @@ var Module = window.Module = Base.extend({
 			this.debug("Defined Module('"+this.id+"')");
 			this.ready.resolve(this.exec());
 		}
-
-		this.defined = this.factory;
-
 	},
 	import: function(token){
 		var module = new this.constructor(token);
@@ -300,7 +319,7 @@ var Module = window.Module = Base.extend({
 		var params = Module.params(this.factory);
 		var ret;
 
-		this.log.groupc(this.id);
+		this.log.group(this.id);
 		
 		if (params[0] === "require"){
 			ret = this.factory.call(this, this.require.bind(this), this.exports, this);
@@ -318,7 +337,7 @@ var Module = window.Module = Base.extend({
 	},
 	set_token: function(token){
 		this.token = token;
-		this.id = Module.resolve(this.token);
+		this.id = this.resolve(this.token);
 	},
 	set_value: function(arg){
 		if (typeof arg === "string")
@@ -384,6 +403,8 @@ var Module = window.Module = Base.extend({
 	}
 });
 
+Module.base = "modules";
+
 Module.modules = {};
 
 Module.get = function(id){
@@ -406,25 +427,6 @@ Module.set = function(id, module){
 // 		pathname: a.pathname
 // 	};
 // };
-
-Module.resolve = function(token){
-	// mimic ending?
-	var parts = token.split("/");
-
-	// "path/thing/" --> "path/thing/thing.js"
-	if (token[token.length-1] === "/"){
-		token = token + parts[parts.length-2] + ".js";
-	// last part doesn't contain a "."
-	// "path/thing" --> "path/thing/thing.js"
-	} else if (parts[parts.length-1].indexOf(".") < 0){
-		token = token + "/" + parts[parts.length-1] + ".js";
-	}
-
-	if (token[0] !== "/")
-		token = "/modules/" + token;
-
-	return token; 
-};
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 var ARGUMENT_NAMES = /([^\s,]+)/g;
