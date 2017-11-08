@@ -85,7 +85,7 @@
 	window.log = logger(true);
 	window.debug = logger(false);
 
-var P = function(){
+var P = window.P = function(){
 	var $resolve, $reject;
 	var p = new Promise(function(resolve, reject){
 		$resolve = resolve;
@@ -204,12 +204,16 @@ Base.extend = function(o){
 	return Ext;
 };
 
+var debug = true;
+
 var Module = window.Module = Base.extend({
 	name: "Module",
 	base: "modules",
-	debug: logger(false),
+	debug: logger(debug),
+	log: logger(false || debug),
 	set_debug: function(value){
 		this.debug = logger(value);
+		this.log = logger(value);
 	},
 	instantiate: function(token){
 		var id = typeof token === "string" ?
@@ -300,7 +304,14 @@ var Module = window.Module = Base.extend({
 			this.debug("Defined Module('"+this.id+"', [" + this.deps.join(", ")+ "])");
 			this.ready.resolve(
 				Promise.all( this.deps.map((dep) => this.import(dep)) )
-					   .then((args) => this.exec.apply(this, args))
+					   .then((args) => {
+					   		this.log(this.id, "almost ready");
+					   		return args;
+					   })
+					   .then((args) => {
+					   		this.log(this.id, "ready");
+					   		return this.exec.apply(this, args)
+					   	})
 			);
 		} else {
 			this.debug("Defined Module('"+this.id+"')");
@@ -309,6 +320,7 @@ var Module = window.Module = Base.extend({
 	},
 	import: function(token){
 		var module = new this.constructor(token);
+		this.debug(this.id, "importing", module.id);
 			// checks cache, returns existing or new
 			// if new, queues request
 			// when <script> arrives, and Module() is defined, it gets the cached module

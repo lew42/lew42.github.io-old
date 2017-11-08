@@ -1,5 +1,7 @@
 Module(["Grid"], function(Grid){
+	console.log("Grid.test.js");
 
+	console.log(this.id);
 	Grid.test = function(Grid){
 		Test.controls();
 
