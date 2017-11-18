@@ -1,5 +1,4 @@
 Module("Grid", ["Stylesheet", "Icon", "Lorem"], function(Stylesheet, Icon){
-	console.log(this.id);
 
 	// .grid-spacing(@n, @y, @x){
 	// 		@width: 100/@n - 2*@x;

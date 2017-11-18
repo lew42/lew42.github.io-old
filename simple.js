@@ -204,7 +204,7 @@ Base.extend = function(o){
 	return Ext;
 };
 
-var debug = true;
+var debug = false;
 
 var Module = window.Module = Base.extend({
 	name: "Module",
@@ -302,17 +302,12 @@ var Module = window.Module = Base.extend({
 
 		if (this.deps){
 			this.debug("Defined Module('"+this.id+"', [" + this.deps.join(", ")+ "])");
+
 			this.ready.resolve(
 				Promise.all( this.deps.map((dep) => this.import(dep)) )
-					   .then((args) => {
-					   		this.log(this.id, "almost ready");
-					   		return args;
-					   })
-					   .then((args) => {
-					   		this.log(this.id, "ready");
-					   		return this.exec.apply(this, args)
-					   	})
+					   .then((args) => this.exec.apply(this, args))
 			);
+
 		} else {
 			this.debug("Defined Module('"+this.id+"')");
 			this.ready.resolve(this.exec());
@@ -320,7 +315,6 @@ var Module = window.Module = Base.extend({
 	},
 	import: function(token){
 		var module = new this.constructor(token);
-		this.debug(this.id, "importing", module.id);
 			// checks cache, returns existing or new
 			// if new, queues request
 			// when <script> arrives, and Module() is defined, it gets the cached module
@@ -370,6 +364,9 @@ var Module = window.Module = Base.extend({
 		return this;
 	},
 	require: function(token){
+		// this makes little sense here...
+		// if there's no cached module, don't create one
+		// this.get(token) => resolve and return
 		var module = new this.constructor(token);
 		return module.value;
 	},

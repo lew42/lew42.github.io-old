@@ -1,7 +1,4 @@
-Module(["Grid"], function(Grid){
-	console.log("Grid.test.js");
-
-	console.log(this.id);
+Module("Grid/Grid.test.js", ["Grid"], function(Grid){
 	Grid.test = function(Grid){
 		Test.controls();
 
