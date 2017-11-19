@@ -155,10 +155,7 @@ var set = function(){
 	return this; // important
 };
 
-
-var createConstructor = function(o){
-	var name = (o && o.name) || this.name + "Ext";
-	o && delete o.name;
+var createConstructor = function(name){
 	eval("var " + name + ";");
 	var constructor = eval("(" + name + " = function(){\r\n\
 		if (!(this instanceof " + name + "))\r\n\
@@ -192,14 +189,32 @@ Base.prototype.set_log = function(value){
 	this.log = logger(value);
 };
 
+Base.extend_args = function(first){
+	var name, args;
+	if (typeof first === "string"){
+		name = first;
+		args = [].slice.call(arguments, 1);
+	} else if (first && first.name){
+		name = first.name;
+		delete first.name;
+		args = arguments;
+	} // otherwise, leave name undefined, for now
+
+	return {
+		name: name,
+		args: args
+	};
+};
+
 Base.createConstructor = createConstructor;
-Base.extend = function(o){
-	var Ext = this.createConstructor(o);
+Base.extend = function(...args){
+	var params = this.extend_args(...args);
+	var Ext = this.createConstructor(params.name || this.name + "Ext");
 	Ext.assign = this.assign;
 	Ext.assign(this);
 	Ext.prototype = Object.create(this.prototype);
 	Ext.prototype.constructor = Ext;
-	Ext.prototype.set.apply(Ext.prototype, arguments);
+	Ext.prototype.set.apply(Ext.prototype, params.args); // strips the name out
 
 	return Ext;
 };
