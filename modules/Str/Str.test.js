@@ -27,6 +27,10 @@ Module("Str/Str.test.js", ["Str", "mixin/events.js"], function(StringObject, eve
 
 		});
 
+		Test("single", function(){
+			var s = StringObject().append("single");
+		});
+
 
 
 
@@ -42,6 +46,9 @@ Module("Str/Str.test.js", ["Str", "mixin/events.js"], function(StringObject, eve
 				one: "one",
 				two: "two"
 			})
+
+			str.name = "str";
+			str.update(); 
 		});
 
 
