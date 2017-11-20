@@ -741,7 +741,7 @@ var View = Base2.extend({
 			} else if (is.fn(arg)){
 				this.append_fn(arg);
 			} else {
-				// DOM, str, etc
+				// DOM, str, undefined, null, etc
 				this.el.append(arg);
 			}
 		}
@@ -775,19 +775,6 @@ var View = Base2.extend({
 		var view;
 		if (value && value.el){
 			view = value;
-		} else if (!value){
-			// false, undefined, or otherwise falsy
-			// why?  why not append value.toString() ?
-			/*
-			if you: render(){ 
-				this.append({
-					icon: this.icon
-				});
-			}, and then you set Thing({ icon: false }),
-			you don't really want to append "false",
-			you want to append nothing...
-			*/
-			return this;
 		} else {
 			view = View().append(value);
 		}
