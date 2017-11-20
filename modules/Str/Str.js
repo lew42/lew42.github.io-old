@@ -1,4 +1,6 @@
 Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
+	console.warn("memory leak with current .children rendering");
+
 	var styles = Stylesheet();
 	styles.request("/modules/Str/Str.css");
 
@@ -60,6 +62,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 				throw "only string values!";
 
 			if (newValue !== currentValue){
+				console.log("changed");
 				// cache it
 				this.value = newValue;
 
@@ -87,6 +90,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 					delete this[child.name]
 			}
 			this.children = [];
+			this.value = "";
 		},
 		initialize: function(){
 			this.auto_render && this.render();
@@ -94,10 +98,10 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 		},
 		init: function(){},
 		append: function(...args){
-			if (!this.children.length && this.value){
-				this.append_string(this.value);
-			} else if (!this.children.length && args.length === 1 && typeof args[0] === "string"){
+			if (!this.children.length && !this.value && args.length === 1 && typeof args[0] === "string"){
+				// stay in ".value" mode
 				this.set_value(args[0]);
+				return this;
 			} else {
 				for (const arg of args){
 					if (is.str(arg)){
@@ -161,7 +165,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 			return this;
 		},
 		change: function(){
-			this.set_value(this.build());
+			this.build();
 		},
 		limit(n = 15){
 			return this.value.substr(0, n);
@@ -212,6 +216,10 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 						children: {}
 					});
 
+					this.preview.value.el.addEventListener("input", ()=>{
+						this.strObj.set_value(this.preview.value.value());
+					})
+
 					// this.preview = View(() => {
 					// 	this.name = View(this.strObj.name).addClass("name");
 					// 	this.value = View();
@@ -221,19 +229,31 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 				update: function(){
 					this.preview.name.set(this.strObj.name);
 					this.preview.value.set(this.strObj.value);
-					this.children.remove();
-					this.children.empty();
-					for (const child of this.strObj.children){
-						if (child && child.render)
-							this.children.append(child.render())
-					} 
+					// this.children.remove();
+					if (this.strObj.children.length){
+						this.preview.value.editable(false);
+						this.children.empty();
+						for (const child of this.strObj.children){
+							if (child && child.render)
+								this.children.append(child.render())
+						}
+					} else {
+						this.preview.value.editable();
+						// this.preview.
+					}
 				}
 			}).addClass("StringObject");
 			this.views.push(view);
+
+			// queue first update
+			this.update();
 			return view;
 		},
 		toString: function(){
 			return this.value;
+		},
+		viewFor(id){
+			
 		}
 	});
 

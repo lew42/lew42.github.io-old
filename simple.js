@@ -930,6 +930,18 @@ var View = Base2.extend({
 	remove: function(){
 		this.el.parentNode && this.el.parentNode.removeChild(this.el);
 		return this;
+	},
+	editable(off){
+		if (off === false){
+			this.el.removeAttribute("contenteditable");
+		} else {
+			this.attr("contenteditable", true)
+		}
+		return this;
+	},
+	value(){
+		// get&set?
+		return this.el.innerHTML;
 	}
 });
 

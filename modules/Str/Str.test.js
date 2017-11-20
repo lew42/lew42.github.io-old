@@ -41,10 +41,14 @@ Module("Str/Str.test.js", ["Str", "mixin/events.js"], function(StringObject, eve
 			str.set("reset")
 		});
 
-		Test("set object", () => {
-			var str = Str({
-				one: "one",
-				two: "two"
+		Test("set object", function(){
+			this.view.content
+				.style("padding", "1em")
+				.style("width", "70%")
+
+			str = Str({
+				one: "one!",
+				two: "two!!"
 			})
 
 			str.name = "str";
