@@ -1,4 +1,6 @@
 Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
+	console.warn("memory leak with current .children rendering");
+
 	var styles = Stylesheet();
 	styles.request("/modules/Str/Str.css");
 
@@ -23,6 +25,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 	var StringObject = Base.extend("StringObject", events, {
 		log: true,
 		auto_render: true,
+		value: "",
 		instantiate(...constructs){
 			this.preset();
 			this.set(...constructs);
@@ -47,9 +50,29 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 			}
 			return this;
 		},
-		// called by Base.prototype.set
+		// .set("value")
 		set_(value){
 			this.append(value);
+		},
+		// .set({value: "value" })
+		set_value(newValue){
+			const currentValue = this.value;
+			// this.log("old:", this.value, "new:", value);
+			if (typeof newValue !== "string")
+				throw "only string values!";
+
+			if (newValue !== currentValue){
+				console.log("changed");
+				// cache it
+				this.value = newValue;
+
+				this.update(); // views
+
+				// notify dependents
+				this.emit("change", newValue, currentValue); // currentValue is now more like "previousValue";
+			} else {
+				console.warn("no change");
+			}
 		},
 		// these things need to happen before .instantiate's .set(...constructs)
 		preset(){
@@ -67,6 +90,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 					delete this[child.name]
 			}
 			this.children = [];
+			this.value = "";
 		},
 		initialize: function(){
 			this.auto_render && this.render();
@@ -74,24 +98,22 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 		},
 		init: function(){},
 		append: function(...args){
-			if (!this.children.length && this.value){
-				this.append_string(this.value);
-			}
-
-			for (const arg of args){
-				if (is.str(arg)){
-					this.append_string(arg);
-				} else if (is.pojo(arg)){
-					this.append_pojo(arg);
-				} else if (arg instanceof StringObject){
-					this.append_stringObject(arg);
+			if (!this.children.length && !this.value && args.length === 1 && typeof args[0] === "string"){
+				// stay in ".value" mode
+				this.set_value(args[0]);
+				return this;
+			} else {
+				for (const arg of args){
+					if (is.str(arg)){
+						this.append_string(arg);
+					} else if (is.pojo(arg)){
+						this.append_pojo(arg);
+					} else if (arg instanceof StringObject){
+						this.append_stringObject(arg);
+					}
 				}
 			}
 
-			// should each append_ sub call do a .change()?
-			// would need to delay/batch them?
-			// or, we *should* emit change even if we have additional appends?
-			this.change();
 			return this;
 		},
 		// fn_sub() vs fn__partial()
@@ -115,6 +137,8 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 
 			this.children.push(stringObject);
 			stringObject.on("change", this.change);
+
+			this.build();
 			return this;
 		},
 		append_pojo(pojo){
@@ -130,71 +154,106 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 			} else if (!value){
 				console.warn("how to handle these?");
 			} else {
-				stringObject = StringObject({ auto_render: false }).append(value);
+				stringObject = StringObject({ 
+					name: prop,
+					value: value,
+					auto_render: false
+				});
 			}
 			this[prop] = stringObject;
 			this.append_stringObject(stringObject);
 			return this;
 		},
 		change: function(){
-			var value = this.build();
-
-			// this.log("old:", this.value, "new:", value);
-			if (this.value !== value){
-				// cache it
-				this.value = value;
-
-				this.update();
-
-				// notify dependents
-				this.emit("change", this.value);
-			} else {
-				console.warn("unnecessary build()");
-			}
+			this.build();
+		},
+		limit(n = 15){
+			return this.value.substr(0, n);
 		},
 		update(){
 			// redraw all views (janky)
-			for (const view of this.views){
-				view.update();
+			console.log(this.limit(), "buffer update");
+			if (!this.update_timeout){
+				console.warn(this.limit(), "queue update");
+				this.update_timeout = setTimeout(() => {
+					this.update_timeout = false;
+					for (const view of this.views){
+						view.update();
+					}
+				}, 0);
 			}
 		},
 		build(){
-			var value = "";
-			for (const child of this.children){
-				if (child && child.toString)
-					value += child.toString()
-				else
-					console.warn("whoops");
-			}
 
-			return value;
+			if (!this.build_q){
+				this.log(this.limit(), "queue build");
+				this.build_q = setTimeout(() => {
+					this.build_q = false;
+					var value = "";
+
+					for (const child of this.children){
+						if (child && child.toString)
+							value += child.toString()
+						else
+							console.warn("whoops");
+					}
+					
+					this.set_value(value);
+					
+				}, 0)
+			}
 		},
 		render: function(){
 			var view = View({
 				classes: "StringObject",
 				strObj: this,
 				render: function(){
-					this.preview = View(() => {
-						this.name = View(this.strObj.name);
-						this.value = View();
+					this.append({
+						preview: {
+							name: this.strObj.name,
+							value: this.strObj.value
+						},
+						children: {}
 					});
-					this.children = View();
+
+					this.preview.value.el.addEventListener("input", ()=>{
+						this.strObj.set_value(this.preview.value.value());
+					})
+
+					// this.preview = View(() => {
+					// 	this.name = View(this.strObj.name).addClass("name");
+					// 	this.value = View();
+					// }).addClass("preview");
+					// this.children = View();
 				},
 				update: function(){
-					this.value.set(this.strObj.value);
-					this.children.remove();
-					this.children.empty();
-					for (const child of this.strObj.children){
-						if (child && child.render)
-							this.children.append(child.render())
-					} 
+					this.preview.name.set(this.strObj.name);
+					this.preview.value.set(this.strObj.value);
+					// this.children.remove();
+					if (this.strObj.children.length){
+						this.preview.value.editable(false);
+						this.children.empty();
+						for (const child of this.strObj.children){
+							if (child && child.render)
+								this.children.append(child.render())
+						}
+					} else {
+						this.preview.value.editable();
+						// this.preview.
+					}
 				}
 			}).addClass("StringObject");
 			this.views.push(view);
+
+			// queue first update
+			this.update();
 			return view;
 		},
 		toString: function(){
 			return this.value;
+		},
+		viewFor(id){
+			
 		}
 	});
 
