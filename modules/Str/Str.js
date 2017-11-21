@@ -1,5 +1,4 @@
 Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
-	console.warn("memory leak with current .children rendering");
 
 	var styles = Stylesheet();
 	styles.request("/modules/Str/Str.css");
@@ -55,7 +54,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 			this.append(value);
 		},
 		// .set({value: "value" })
-		set_value(newValue){
+		set_value(newValue, update = true){
 			const currentValue = this.value;
 			// this.log("old:", this.value, "new:", value);
 			if (typeof newValue !== "string")
@@ -66,7 +65,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 				// cache it
 				this.value = newValue;
 
-				this.update(); // views
+				update && this.update(); // views
 
 				// notify dependents
 				this.emit("change", newValue, currentValue); // currentValue is now more like "previousValue";
@@ -139,6 +138,8 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 			stringObject.on("change", this.change);
 
 			this.build();
+
+			this.emit("append", stringObject);
 			return this;
 		},
 		append_pojo(pojo){
@@ -172,9 +173,9 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 		},
 		update(){
 			// redraw all views (janky)
-			console.log(this.limit(), "buffer update");
+			// console.log(this.limit(), "buffer update");
 			if (!this.update_timeout){
-				console.warn(this.limit(), "queue update");
+				// console.warn(this.limit(), "queue update");
 				this.update_timeout = setTimeout(() => {
 					this.update_timeout = false;
 					for (const view of this.views){
@@ -186,7 +187,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 		build(){
 
 			if (!this.build_q){
-				this.log(this.limit(), "queue build");
+				// this.log(this.limit(), "queue build");
 				this.build_q = setTimeout(() => {
 					this.build_q = false;
 					var value = "";
@@ -216,9 +217,21 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 						children: {}
 					});
 
+					// append current children
+					for (const child of this.strObj.children){
+						this.children.append(child.render());
+					}
+
+					// listen for new children
+					this.strObj.on("append", (child) => {
+						this.children.append(child.render());
+					});
+
 					this.preview.value.el.addEventListener("input", ()=>{
-						this.strObj.set_value(this.preview.value.value());
-					})
+						this.strObj.set_value(this.preview.value.value(), false);
+					});
+
+					this.update(); // 
 
 					// this.preview = View(() => {
 					// 	this.name = View(this.strObj.name).addClass("name");
@@ -229,24 +242,28 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 				update: function(){
 					this.preview.name.set(this.strObj.name);
 					this.preview.value.set(this.strObj.value);
-					// this.children.remove();
 					if (this.strObj.children.length){
 						this.preview.value.editable(false);
-						this.children.empty();
-						for (const child of this.strObj.children){
-							if (child && child.render)
-								this.children.append(child.render())
-						}
 					} else {
+						console.log("no children?", this.strObj, this.strObj.children);
 						this.preview.value.editable();
-						// this.preview.
 					}
+					// this.children.remove();
+					// if (this.strObj.children.length){
+					// 	this.preview.value.editable(false);
+					// 	this.children.empty();
+					// 	for (const child of this.strObj.children){
+					// 		if (child && child.render)
+					// 			this.children.append(child.render())
+					// 	}
+					// } else {
+					// 	this.preview.value.editable();
+					// 	// this.preview.
+					// }
 				}
 			}).addClass("StringObject");
 			this.views.push(view);
 
-			// queue first update
-			this.update();
 			return view;
 		},
 		toString: function(){

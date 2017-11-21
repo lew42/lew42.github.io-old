@@ -931,10 +931,15 @@ var View = Base2.extend({
 		this.el.parentNode && this.el.parentNode.removeChild(this.el);
 		return this;
 	},
-	editable(off){
-		if (off === false){
+	editable(remove){
+		remove = (remove === false);
+		const hasAttr = this.el.hasAttribute("contenteditable");
+
+		if (remove && hasAttr){
+			console.warn(this.el, "remove ce");
 			this.el.removeAttribute("contenteditable");
-		} else {
+		} else if (!remove && !hasAttr) {
+			console.warn(this.el, "add ce");
 			this.attr("contenteditable", true)
 		}
 		return this;
