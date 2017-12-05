@@ -287,10 +287,10 @@ var Module = window.Module = Base.extend({
 		this.log = logger(value);
 	},
 	instantiate: function(token){
-		var id = typeof token === "string" ?
+		const id = typeof token === "string" ?
 			this.resolve(token) : false;
 
-		var cached = id && Module.get(id);
+		const cached = id && Module.get(id);
 
 		if (cached){
 			cached.set.apply(cached, arguments);
@@ -931,15 +931,10 @@ var View = Base2.extend({
 		this.el.parentNode && this.el.parentNode.removeChild(this.el);
 		return this;
 	},
-	editable(remove){
-		remove = (remove === false);
-		const hasAttr = this.el.hasAttribute("contenteditable");
-
-		if (remove && hasAttr){
-			console.warn(this.el, "remove ce");
+	editable(off){
+		if (off === false){
 			this.el.removeAttribute("contenteditable");
-		} else if (!remove && !hasAttr) {
-			console.warn(this.el, "add ce");
+		} else {
 			this.attr("contenteditable", true)
 		}
 		return this;
