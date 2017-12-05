@@ -287,10 +287,10 @@ var Module = window.Module = Base.extend({
 		this.log = logger(value);
 	},
 	instantiate: function(token){
-		var id = typeof token === "string" ?
+		const id = typeof token === "string" ?
 			this.resolve(token) : false;
 
-		var cached = id && Module.get(id);
+		const cached = id && Module.get(id);
 
 		if (cached){
 			cached.set.apply(cached, arguments);
