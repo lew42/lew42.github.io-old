@@ -50,7 +50,7 @@ Module("Str", ["mixin/events.js", "Stylesheet"], function(events, Stylesheet){
 			return this;
 		},
 		// .set("value")
-		set_(value){
+		set$(value){
 			this.append(value);
 		},
 		// .set({value: "value" })
