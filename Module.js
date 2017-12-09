@@ -1,95 +1,47 @@
 ;(function(){
-
-	var console_methods = ["log", "group", "debug", "trace", 
-		"error", "warn", "info", "time", "timeEnd", "dir"];
-
-	var g = function(str, fn){
-		this.group(str);
-		fn();
-		this.end();
-	};
-
-	var gc = function(str, fn){
-		this.groupc(str);
-		fn();
-		this.end();
-	};
-
-	var make_enabled_logger = function(){
-		var enabled_logger = console.log.bind(console);
-		enabled_logger.enabled = true;
-		enabled_logger.disabled = false;
-
-		console_methods.forEach(function(name){
-			enabled_logger[name] = console[name].bind(console);
-		});
-
-		enabled_logger.groupc = console.groupCollapsed.bind(console);
-		enabled_logger.end = console.groupEnd.bind(console);
-		enabled_logger.close = function(closure, ctx){
-			if (typeof closure === "function"){
-				closure.call(ctx);
-			}
-			this.end();
-		};
-
-		enabled_logger.g = g;
-		enabled_logger.gc = gc;
-
-		enabled_logger.isLogger = true;
-		
-		return enabled_logger;
-	};
-
-
-	var noop = function(){};
-
-	var make_disabled_logger = function(){
-		var disabled_logger = function(){};
-		disabled_logger.disabled = true;
-		disabled_logger.enabled = false;
-		console_methods.forEach(function(name){
-			disabled_logger[name] = noop;
-		});
-		disabled_logger.groupc = noop;
-		disabled_logger.end = noop;
-		disabled_logger.close = function(closure, ctx){
-			if (typeof closure === "function"){
-				closure.call(ctx);
-			}
-		};
-		disabled_logger.g = g;
-		disabled_logger.gc = gc;
-
-		disabled_logger.isLogger = true;
-		
-		return disabled_logger;
-	};
-
-	var enabled_logger = make_enabled_logger();
-	var disabled_logger = make_disabled_logger();
-
-	enabled_logger.on = disabled_logger.on = enabled_logger;
-	enabled_logger.off = disabled_logger.off = disabled_logger;
-
-	var logger = window.logger = function(value){
-		if (typeof value === "function" && value.isLogger){
+;(function(){
+	const logger = function(value){
+		if (typeof value === "function" && value.logger){
 			return value;
 		} else if (value){
-			return enabled_logger;
+			return logger.active;
 		} else {
-			return disabled_logger;
+			return logger.inactive;
 		}
 	};
 
-	window.log = logger(true);
-	window.debug = logger(false);
+	const console_methods = ["log", "group", "groupCollapsed", "debug", "trace", 
+		"error", "warn", "info", "time", "timeEnd", "dir"];
 
-var P = window.P = function(){
-	var $resolve, $reject;
-	var p = new Promise(function(resolve, reject){
-		$resolve = resolve;
-		$reject = reject;
+	const inactive = function(){};
+
+	const active = logger.active = console.log.bind(console);
+	const inactive = logger.inactive = function(){};
+	
+	active.logger = inactive.logger = logger;
+	
+	active.active = inactive.active = active;
+	inactive.inactive = active.inactive = inactive;
+
+	active.is_active = true;
+	inactive.is_active = false;
+	
+	for (const method of console_methods){
+		active[method] = console[method].bind(console);
+		inactive[method] = noop;
+	}
+
+	active.groupc = console.groupCollapsed.bind(console);
+	active.end = console.groupEnd.bind(console);
+
+	inactive.groupc = noop;
+	inactive.end = noop;
+})();
+const P = window.P = function(){
+	var resolve, reject;
+	const p = new Promise(function(res, rej){
+		resolve = res;
+		reject = rej;
 	});
 
 	p.resolve = $resolve;
@@ -97,67 +49,34 @@ var P = window.P = function(){
 
 	return p;
 };
-
-var set_old = function(){
-	var arg;
-	for (var i = 0; i < arguments.length; i++){
-		arg = arguments[i];
-
-		// pojo arg
-		if (arg && arg.constructor === Object){
-
-			// iterate over arg props
-			for (var j in arg){
-
-				// set_*
-				if (this["set_" + j]){
-					this["set_" + j](arg[j]);
-					// create a .set_assign() method that simply calls assign with the arg...
-
-				// "assign" prop will just call assign
-				} else if (j === "assign") {
-					this.assign(arg[j]);
-
-				} else if (this[j] && this[j].set){
-					this[j].set(arg[j]);
-
-				// existing prop is a pojo - "extend" it
-				} else if (this[j] && this[j].constructor === Object){
-
-					// make sure its safe
-					if (this.hasOwnProperty(j))
-						set.call(this[j], arg[j]);
-
-					// if not, protect the prototype
-					else {
-						this[j] = set.call(Object.create(this[j]), arg[j]);
-					}
-
-				// everything else, assign
-				} else {
-					// basically just arrays and fns...
-					// console.warn("what are you", arg[j]);
-					this[j] = arg[j];
-				}
-			}
-
-		// non-pojo arg
-		} else if (this.set_value){
-			// auto apply if arg is array?
-			this.set_value(arg);
-
-		// oops
-		} else {
-			console.warn("not sure what to do with", arg);
-		}
+const events = {
+	on(event, cb){
+		var cbs = this.events[event];
+		if (!cbs)
+			cbs = this.events[event] = [];
+		cbs.push(cb);
+		return this;
+	},
+	emit(event, ...args){
+		const cbs = this.events[event];
+		if (cbs && cbs.length)
+			for (const cb of cbs)
+				cb.apply(this, ...args);
+		return this;
+	},
+	off: function(event, cbForRemoval){
+		const cbs = this.events[event];
+		if (cbs)
+			for (var i = 0; i < cbs.length; i++)
+				if (cbs[i] === cbForRemoval)
+					cbs.splice(i, 1);
+		return this;
 	}
-
-	return this; // important
 };
+const set = function(...args){
+	if (this._set)
+		this._set(...args); // pre .set() hook
 
-
-
-var set = function(...args){
 	for (const arg of args){
 		// pojo arg
 		if (arg && arg.constructor === Object){
@@ -198,9 +117,9 @@ var set = function(...args){
 			}
 
 		// non-pojo arg
-		} else if (this.set_){
+		} else if (this.set$){
 			// auto apply if arg is array?
-			this.set_(arg);
+			this.set$(arg);
 
 		// oops
 		} else {
@@ -208,108 +127,94 @@ var set = function(...args){
 		}
 	}
 
+	if (this.set_)
+		this.set_(...args); // post .set() hook
+
 	return this; // important
 };
+// logger()
+// set
+// 
 
-var createConstructor = function(name){
-	eval("var " + name + ";");
-	var constructor = eval("(" + name + " = function(...constructs){\r\n\
-		if (!(this instanceof " + name + "))\r\n\
-			return new " + name + "(...constructs);\r\n\
-		return this.instantiate(...constructs);\r\n\
-	});");
-	return constructor;
-};
-
-var Base = window.Base = function(...constructs){
+const Base = function(...constructs){
 	if (!(this instanceof Base))
 		return new Base(...constructs);
+	this.events = {};
 	return this.instantiate(...constructs);
 };
 
-Base.assign = Base.prototype.assign = function(){
-	var arg;
-	for (var i = 0; i < arguments.length; i++){
-		arg = arguments[i];
-		for (var prop in arg){
+Base.assign = Base.prototype.assign = function(...args){
+	for (arg of args)
+		for (const prop in arg)
 			this[prop] = arg[prop];
-		}
-	}
 	return this;
 };
 
-Base.prototype.instantiate = function(){};
-Base.prototype.set = set;
-Base.prototype.log = logger(false);
-Base.prototype.set_log = function(value){
-	this.log = logger(value);
-};
+Base.prototype.assign(events, {
+	instantiate(){},
+	set: set,
+	log: logger(),
+	set_log(value){
+		this.log = logger(value);
+	}
+});
 
-Base.extend_args = function(first){
-	var name, args;
-	if (typeof first === "string"){
-		name = first;
-		args = [].slice.call(arguments, 1);
-	} else if (first && first.name){
-		name = first.name;
-		delete first.name;
-		args = arguments;
-	} // otherwise, leave name undefined, for now
+Base.assign(events, {
+	extend(...args){
+		const name = typeof args[0] === "string" ? args.shift() : this.name + "Ext";
+		const Ext = this.extend_base(name);
+		Ext.assign = this.assign;
+		Ext.assign(this);
+		Ext.events = {};
+		Ext.prototype = Object.create(this.prototype);
+		Ext.prototype.constructor = Ext;
+		Ext.prototype.set(...args);
+		this.emit("extended", Ext);
+		return Ext;
+	},
+	extend_base(name){
+		eval("var " + name + ";");
+		var constructor = eval("(" + name + " = function(...constructs){\r\n\
+			if (!(this instanceof " + name + "))\r\n\
+				return new " + name + "(...constructs);\r\n\
+			this.events = {};\r\n\
+			return this.instantiate(...constructs);\r\n\
+		});");
+		return constructor;
+	},
 
-	return {
-		name: name,
-		args: args
-	};
-};
+});
+const debug = false;
 
-Base.createConstructor = createConstructor;
-Base.extend = function(...args){
-	var params = this.extend_args(...args);
-	var Ext = this.createConstructor(params.name || this.name + "Ext");
-	Ext.assign = this.assign;
-	Ext.assign(this);
-	Ext.prototype = Object.create(this.prototype);
-	Ext.prototype.constructor = Ext;
-	Ext.prototype.set.apply(Ext.prototype, params.args); // strips the name out
-
-	return Ext;
-};
-
-var debug = false;
-
-var Module = window.Module = Base.extend({
-	name: "Module",
+const Module = window.Module = Base.extend("Module", {
 	base: "modules",
 	debug: logger(debug),
 	log: logger(false || debug),
-	set_debug: function(value){
-		this.debug = logger(value);
-		this.log = logger(value);
+
+	instantiate(...args){
+		return (this.get(args[0]) || this.initialize()).set(...args);
 	},
-	instantiate: function(token){
-		const id = typeof token === "string" ?
-			this.resolve(token) : false;
 
-		const cached = id && Module.get(id);
-
-		if (cached){
-			cached.set.apply(cached, arguments);
-			cached.reinitialize();
-			return cached;
-
-		} else {
-			this.set.apply(this, arguments);
-			this.initialize();
-			return this;
-		}
+	get: function(token){
+		return is.str(token) && Module.get(this.resolve(token));
 	},
-	resolve: function(token){
-		// mimic ending?
-		var parts = token.split("/");
 
+	initialize(...args){
+		this.ready = P();
+		this.dependencies = [];
+		this.dependents = [];
+
+		return this; // see instantiate()
+	},
+
+	resolve(token){
+		const parts = token.split("/");
+
+		// token ends with "/", example:
 		// "path/thing/" --> "path/thing/thing.js"
 		if (token[token.length-1] === "/"){
 			token = token + parts[parts.length-2] + ".js";
+
 		// last part doesn't contain a "."
 		// "path/thing" --> "path/thing/thing.js"
 		} else if (parts[parts.length-1].indexOf(".") < 0){
@@ -319,110 +224,115 @@ var Module = window.Module = Base.extend({
 		if (token[0] !== "/")
 			token = "/" + Module.base + "/" + token;
 
-		return token; 
+		return token; // the transformed token is now the id
 	},
-	initialize: function(){
-		var a;
 
-		this.ready = P();
-		this.exports = {}; // module.exports is from node-land, an empty object
+	import(token){
+		return (new this.constructor(this.resolve(token))).register(this);
+	},
 
-		if (!this.id){
-			a = document.createElement("a");
-			a.href = document.currentScript.src;
-			this.id = a.pathname;
-			this.set_log(true);
+	register(dependent){
+		this.dependents.push(dependent);
+
+		if (!this.factory && !this.queued && !this.requested){
+			this.queued = setTimeout(this.request.bind(this), 0);
 		}
 
-		// cache me
-		Module.set(this.id, this);
-
-		// handle incoming arguments
-		this.reinitialize();
+		return this.ready; // see import()
 	},
-	reinitialize: function(){
-		// have we defined?
-		if (!this.defined){
-			// no, either define() or queue the request
 
-			// factory function available
-			if (this.factory){
-				this.define();
-
-			// no factory function to define with
-			} else if (!this.queued && !this.requested) {
-				// queue up the request
-				this.queued = setTimeout(this.request.bind(this), 0);
-				this.debug("Queued Module('"+this.id+"')");
-			}
-
-		// we already defined
-		} else {
-			// if the previous .factory was overridden, this is trouble
-			if (this.factory !== this.defined)
-				throw "do not redefine a module with a new .factory fn";
-		}
-
-	},
-	define: function(){
-		// clear the request, if queued
-		if (this.queued)
-			clearTimeout(this.queued);
-
-		this.defined = this.factory;
-
-		if (this.deps){
-			this.debug("Defined Module('"+this.id+"', [" + this.deps.join(", ")+ "])");
-
-			this.ready.resolve(
-				Promise.all( this.deps.map((dep) => this.import(dep)) )
-					   .then((args) => this.exec.apply(this, args))
-			);
-
-		} else {
-			this.debug("Defined Module('"+this.id+"')");
-			this.ready.resolve(this.exec());
-		}
-	},
-	import: function(token){
-		var module = new this.constructor(token);
-			// checks cache, returns existing or new
-			// if new, queues request
-			// when <script> arrives, and Module() is defined, it gets the cached module
-			// and defines all deps, waits for all deps, then executes its factory, then resolves this .ready promise
-		return module.ready;
-	},
-	exec: function(){
-		var params = Module.params(this.factory);
-		var ret;
+	exec(){
+		const params = Module.params(this.factory);
 
 		this.log.group(this.id);
 		
-		if (params[0] === "require"){
-			ret = this.factory.call(this, this.require.bind(this), this.exports, this);
-			if (typeof ret === "undefined")
-				this.value = this.exports;
-			else 
-				this.value = ret;
-		} else {
-			this.value = this.factory.apply(this, arguments);
-		}
+			// call the .factory
+			if (params[0] === "require")
+				this.exec_common()
+			else
+				this.exports = this.factory.apply(this, arguments)
 
 		this.log.end();
 
-		return this.value;
+		return this.exports;
 	},
-	set_token: function(token){
+
+	exec_common(){
+		this.exports = {};
+		const ret = this.factory.call(this, this.require.bind(this), this.exports, this);
+		if (typeof ret !== "undefined")
+			this.exports = ret;
+	}
+
+	set_id(id){
+		if (this.id && this.id !== id)
+			throw "do not reset id";
+
+		if (!this.id){
+			this.id = id;
+
+			// cache me
+			Module.set(this.id, this);
+		} else {
+			// this.id && this.id === id
+			// noop ok
+		}
+	},
+
+	id_from_src(){
+		if (!this.id){
+			const a = document.createElement("a");
+			a.href = document.currentScript.src;
+
+			this.set({
+				id: a.pathname,
+				log: true // might need to be adjusted
+			})
+		}
+	},
+
+	set_token(token){
 		this.token = token;
-		this.id = this.resolve(this.token);
+		this.set_id(this.resolve(this.token));
 	},
-	set_: function(arg){
+	
+	set_deps(deps){
+		if (this.factory)
+			throw "provide deps before factory fn";
+
+		this.deps = deps;
+	},
+
+	set_factory(factory){
+		if (this.factory)
+			throw "don't re-set factory fn";
+
+		this.factory = factory;
+
+		this.deps = this.deps || [];
+
+		// all the magic, right here
+		this.ready.resolve(
+			Promise.all(this.deps.map(dep => this.import(dep)))
+				.then(args => this.exec.apply(this, args))
+		);
+
+		// for anonymous modules (no id)
+		this.id_from_src();
+		
+		// 
+		if (this.queued)
+			clearTimeout(this.queued);
+	},
+
+	// set(value) is forwarded here, when value is non-pojo 
+	set$(arg){
 		if (typeof arg === "string")
 			this.set_token(arg);
 		else if (toString.call(arg) === '[object Array]')
-			this.deps = arg;
+			this.set_deps(arg);
 		else if (typeof arg === "function")
-			this.factory = arg;
+			this.set_factory(arg);
 		else if (typeof arg === "object")
 			this.assign(arg);
 		else if (typeof arg === "undefined"){
@@ -434,32 +344,37 @@ var Module = window.Module = Base.extend({
 
 		return this;
 	},
-	require: function(token){
-		// this makes little sense here...
-		// if there's no cached module, don't create one
-		// this.get(token) => resolve and return
-		var module = new this.constructor(token);
-		return module.value;
+
+
+	set_debug(value){
+		this.debug = logger(value);
+		this.log = logger(value);
 	},
-	request: function(){
+
+	require(token){
+		const module = this.get(token);
+		if (!module)
+			throw "module not preloaded";
+		return module.exports;
+	},
+
+	request(){
 		this.queued = false;
-		if (!this.defined && !this.requested){
+		
+		if (this.factory)
+			throw "request wasn't dequeued";
+
+		if (!this.requested){
 			this.script = document.createElement("script");
 			this.src = this.id;
 			this.script.src = this.src;
-
-			// used in global define() function as document.currentScript.module
-			// this enables anonymous modules to be defined/require without the need for an id
-				// but, that means you can't concatenate it into a bundle...
-			this.script.module = this;
-
-			// this.debug("request", this.id);
 			document.head.appendChild(this.script);
 			this.requested = true;
 		} else {
 			throw "trying to re-request?"
 		}
 	},
+
 	request2: function(){
 		this.queued = false;
 		if (!this.defined && !this.requested){
@@ -472,14 +387,23 @@ var Module = window.Module = Base.extend({
 			throw "trying to re-request?";
 		}
 	},
+
 	requireRegExp: function(){
 		return /require\s*\(['"]([^'"]+)['"]\);?/gm;
 	},
+
 	functionize: function(data){
 		var re = this.requireRegExp();
 		this.deps = [];
 		this.deps.push(re.exec(this.xhr.responseText)[1]);
 		console.log("functionize", this.xhr.responseText);
+	},
+
+	render(){
+		this.views = this.views || [];
+		const view = ModuleView({ module: this });
+		this.views.push(view);
+		return view;
 	}
 });
 
@@ -487,14 +411,23 @@ Module.base = "modules";
 
 Module.modules = {};
 
+// returns module or falsey
 Module.get = function(id){
-	return this.modules[id];
+	return id && this.modules[id];
+		// id can be false, or undefined?
 };
 
 Module.set = function(id, module){
 	this.modules[id] = module;
 };
 
+Module.doc = new Promise((res, rej) => {
+	if (/comp|loaded/.test(document.readyState)){
+		res();
+	} else {
+		document.addEventListener("DOMContentLoaded", res);
+	}
+});
 
 // Module.url = function(token){
 // 	var a = document.createElement("a");
@@ -508,16 +441,23 @@ Module.set = function(id, module){
 // 	};
 // };
 
-var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-var ARGUMENT_NAMES = /([^\s,]+)/g;
+const STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+const ARGUMENT_NAMES = /([^\s,]+)/g;
 
 Module.params = function(fn){
-	var fnStr = fn.toString().replace(STRIP_COMMENTS, '');
+	const fnStr = fn.toString().replace(STRIP_COMMENTS, '');
 	var result = fnStr.slice(fnStr.indexOf('(')+1, fnStr.indexOf(')')).match(ARGUMENT_NAMES);
 	if (result === null)
 		result = [];
+	// console.log(result);
 	return result;
 };
 
 
+Module.Base = Base;
+Module.mixin = {
+	assign: Base.assign,
+	events: events,
+
+};
 })();
