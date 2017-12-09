@@ -1,5 +1,5 @@
 ;(function(){
-;(function(){
+const logger = (function(){
 	const logger = function(value){
 		if (typeof value === "function" && value.logger){
 			return value;
@@ -13,7 +13,7 @@
 	const console_methods = ["log", "group", "groupCollapsed", "debug", "trace", 
 		"error", "warn", "info", "time", "timeEnd", "dir"];
 
-	const inactive = function(){};
+	const noop = function(){};
 
 	const active = logger.active = console.log.bind(console);
 	const inactive = logger.inactive = function(){};
@@ -36,16 +36,18 @@
 
 	inactive.groupc = noop;
 	inactive.end = noop;
+
+	return logger;
 })();
-const P = window.P = function(){
+const P = function(){
 	var resolve, reject;
 	const p = new Promise(function(res, rej){
 		resolve = res;
 		reject = rej;
 	});
 
-	p.resolve = $resolve;
-	p.reject = $reject;
+	p.resolve = resolve;
+	p.reject = reject;
 
 	return p;
 };
@@ -160,6 +162,7 @@ Base.prototype.assign(events, {
 });
 
 Base.assign(events, {
+	events: {},
 	extend(...args){
 		const name = typeof args[0] === "string" ? args.shift() : this.name + "Ext";
 		const Ext = this.extend_base(name);
@@ -196,7 +199,7 @@ const Module = window.Module = Base.extend("Module", {
 	},
 
 	get: function(token){
-		return is.str(token) && Module.get(this.resolve(token));
+		return typeof token === "string" && Module.get(this.resolve(token));
 	},
 
 	initialize(...args){
@@ -262,7 +265,7 @@ const Module = window.Module = Base.extend("Module", {
 		const ret = this.factory.call(this, this.require.bind(this), this.exports, this);
 		if (typeof ret !== "undefined")
 			this.exports = ret;
-	}
+	},
 
 	set_id(id){
 		if (this.id && this.id !== id)
