@@ -64,6 +64,7 @@ define.Base = class Base {
 
 	constructor(){
 		this.events = {};
+		this.log = define.logger();
 	}
 
 	// get log(){
@@ -169,12 +170,46 @@ define.Base = class Base {
 
 		return this; // important
 	}
+
+	static get events(){
+		return this._events || (this._events = {});
+	}
+
+	static set events(oops){
+		throw "don't";
+	}
+
+	static on(event, cb){
+		var cbs = this.events[event];
+		if (!cbs)
+			cbs = this.events[event] = [];
+		cbs.push(cb);
+		return this;
+	}
+
+	static emit(event, ...args){
+		const cbs = this.events[event];
+		if (cbs && cbs.length)
+			for (const cb of cbs)
+				cb.apply(this, ...args);
+		return this;
+	}
+
+	static off(event, cbForRemoval){
+		const cbs = this.events[event];
+		if (cbs)
+			for (var i = 0; i < cbs.length; i++)
+				if (cbs[i] === cbForRemoval)
+					cbs.splice(i, 1);
+		return this;
+	}
 };
 
 define.Module = class Module extends define.Base {
 
 	constructor(...args){
 		super();
+		this.debug = define.logger(this.log);
 		return (this.get(args[0]) || this.initialize()).set(...args);
 	}
 
@@ -244,21 +279,26 @@ define.Module = class Module extends define.Base {
 			}
 		}
 
+		this.debug(this.id, ".resolve(", token, ") =>", id);
 		return id;
 	}
 
 	import(token){
-		return (new this.constructor(this.resolve(token))).register(this);
+		const module = new this.constructor(this.resolve(token));
+		module.register(this);
+
+		this.dependencies.push(module);
+		this.emit("dependency", module);
+		
+		return module.ready;
 	}
 
 	register(dependent){
 		this.dependents.push(dependent);
+		this.emit("dependent", dependent);
 
-		if (!this.factory && !this.queued && !this.requested){
+		if (!this.factory && !this.queued && !this.requested)
 			this.queued = setTimeout(this.request.bind(this), 0);
-		}
-
-		return this.ready; // see import()
 	}
 
 	require(token){
@@ -295,6 +335,8 @@ define.Module = class Module extends define.Base {
 
 			// cache me
 			Module.set(this.id, this);
+
+			this.emit("id", id);
 		} else {
 			// this.id && this.id === id
 			// noop is ok
@@ -394,6 +436,7 @@ define.Module = class Module extends define.Base {
 		if (this.modules[id])
 			throw "don't redefine a module";
 		this.modules[id] = module;
+		this.emit("new", module, id);
 	}
 
 	static doc(...cbs){
