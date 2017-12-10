@@ -18,9 +18,20 @@ define.P = function(){
 	return p;
 };
 
+define.doc = new Promise((res, rej) => {
+	if (/comp|loaded/.test(document.readyState))
+		res();
+	else
+		document.addEventListener("DOMContentLoaded", res);
+});
+
+// end
+
 define.logger = (function(){
 	const logger = function(value){
-		if (typeof value === "function" && value.logger){
+		if (typeof value === "undefined"){
+			return logger.auto;
+		} else if (typeof value === "function" && value.logger){
 			return value;
 		} else if (value){
 			return logger.active;
@@ -32,29 +43,60 @@ define.logger = (function(){
 
 	const noop = function(){};
 
+	// 3 modes
 	const active = logger.active = console.log.bind(console);
+	const auto = logger.auto = function(){};
 	const inactive = logger.inactive = function(){};
 	
 	const console_methods = ["log", "group", "groupCollapsed", "groupEnd", "debug", "trace", "error", "warn", "info", "time", "timeEnd", "dir"];
 	
 	for (const method of console_methods){
 		active[method] = console[method].bind(console);
+		auto[method] = console[method].bind(console);
 		inactive[method] = noop;
 	}
 
-	// some references
-	active.logger = inactive.logger = logger;
-	active.active = inactive.active = active;
-	inactive.inactive = active.inactive = inactive;
+	
+	// log.if() is the magic behind the "auto" mode
 
-	// some flags
-	active.is_active = true;
-	inactive.is_active = false;
+	// always on
+	active.if = function(cond, ...args){
+		if (args.length)
+			active(...args);
+		return active;
+	};
+
+	// maybe on
+	auto.if = function(cond, ...args){
+		if (cond){
+			if (args.length)
+				active(...args);
+			return active;
+		} else {
+			return inactive;
+		}
+	};
+
+	// always off
+	inactive.if = function(cond, ...args){
+		return inactive;
+	}
+
+	// some references
+	active.logger = auto.logger = inactive.logger = logger;
+	active.active = auto.active = inactive.active = active;
+	active.auto = auto.auto = inactive.auto = auto;
+	active.inactive = auto.inactive = inactive.inactive = inactive;
+
+	// use if (this.log === this.log.auto) to check logger mode
 	
 	// alias these long methods
 	active.groupc = console.groupCollapsed.bind(console);
+	auto.groupc = noop;
 	inactive.groupc = noop;
+
 	active.end = console.groupEnd.bind(console);
+	auto.end = noop;
 	inactive.end = noop;
 
 	return logger;
@@ -209,7 +251,6 @@ define.Module = class Module extends define.Base {
 
 	constructor(...args){
 		super();
-		this.debug = define.logger(this.log);
 		return (this.get(args[0]) || this.initialize()).set(...args);
 	}
 
@@ -229,7 +270,7 @@ define.Module = class Module extends define.Base {
 		this.exports = {};
 
 		// log if no dependents
-		const log = define.logger(!this.dependents.length);
+		const log = this.log.if(!this.dependents.length);
 		
 		log.group(this.id);
 		const ret = this.factory.call(this, this.require.bind(this), this.exports, this);
@@ -279,7 +320,7 @@ define.Module = class Module extends define.Base {
 			}
 		}
 
-		this.debug(this.id, ".resolve(", token, ") =>", id);
+		this.log(this.id, ".resolve(", token, ") =>", id);
 		return id;
 	}
 
@@ -439,24 +480,6 @@ define.Module = class Module extends define.Base {
 		this.emit("new", module, id);
 	}
 
-	static doc(...cbs){
-		if (!this.document_ready){
-			this.document_ready = new Promise((res, rej) => {
-				if (/comp|loaded/.test(document.readyState))
-					res();
-				else
-					document.addEventListener("DOMContentLoaded", res);
-			});
-		}
-
-		return this.document_ready.then(...cbs);
-	}
-
-	static base(base){
-		if (base) this._base = base;
-		return this._base || "modules";
-	}
-
 	static url(original){
 		const a = document.createElement("a");
 		a.href = original;
@@ -469,4 +492,4 @@ define.Module = class Module extends define.Base {
 			path: a.pathname.substr(0, a.pathname.lastIndexOf('/') + 1)
 		};
 	}
-}
+} // end
