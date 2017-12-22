@@ -1,48 +1,5 @@
-define = function(...args){
-	return new define.Module(...args);
-};
-
-define.path = "modules";
-
-define.P = function(){
-	var resolve, reject;
-	
-	const p = new Promise(function(res, rej){
-		resolve = res;
-		reject = rej;
-	});
-
-	p.resolve = resolve;
-	p.reject = reject;
-
-	return p;
-};
-
-define.doc = new Promise((res, rej) => {
-	if (/comp|loaded/.test(document.readyState))
-		res();
-	else
-		document.addEventListener("DOMContentLoaded", res);
-});
-
-define.new = function(){
-	const new_define = function(...args){
-		return new new_define.Module(...args);
-	};
-	new_define.path = define.path;
-	new_define.P = define.P;
-	new_define.doc = define.doc;
-	new_define.new = define.new;
-	new_define.logger = define.logger;
-	new_define.Base = class Base extends define.Base {};
-	new_define.Module = class Module extends define.Module {};
-	new_define.Module.modules = {};
-	return new_define;
-};
-
-// end
-
-define.logger = (function(){
+;(function(){
+const logger = (function(){
 	const logger = function(value){
 		if (typeof value === "undefined"){
 			return logger.auto;
@@ -244,13 +201,30 @@ define.Base = class Base {
 		return this;
 	}
 
-	static emit(event, ...args){
-		const cbs = this.events[event];
-		if (cbs && cbs.length)
-			for (const cb of cbs)
-				cb.apply(this, args);
-		return this;
-	}
+Base.assign(events, {
+	events: {},
+	extend(...args){
+		const name = typeof args[0] === "string" ? args.shift() : this.name + "Ext";
+		const Ext = this.extend_base(name);
+		Ext.assign = this.assign;
+		Ext.assign(this);
+		Ext.events = {};
+		Ext.prototype = Object.create(this.prototype);
+		Ext.prototype.constructor = Ext;
+		Ext.prototype.set(...args);
+		this.emit("extended", Ext);
+		return Ext;
+	},
+	extend_base(name){
+		eval("var " + name + ";");
+		var constructor = eval("(" + name + " = function(...constructs){\r\n\
+			if (!(this instanceof " + name + "))\r\n\
+				return new " + name + "(...constructs);\r\n\
+			this.events = {};\r\n\
+			return this.instantiate(...constructs);\r\n\
+		});");
+		return constructor;
+	},
 
 	static off(event, cbForRemoval){
 		const cbs = this.events[event];
@@ -264,18 +238,16 @@ define.Base = class Base {
 
 define.Module = class Module extends define.Base {
 
-	constructor(...args){
-		super();
-		this.constructor.emit("construct", this, args);
+	instantiate(...args){
 		return (this.get(args[0]) || this.initialize()).set(...args);
 	}
 
-	get(token){
-		return typeof token === "string" && this.constructor.get(this.resolve(token));
-	}
+	get: function(token){
+		return typeof token === "string" && Module.get(this.resolve(token));
+	},
 
 	initialize(...args){
-		this.ready = this.constructor.P();
+		this.ready = P();
 		this.dependencies = [];
 		this.dependents = [];
 
@@ -285,66 +257,19 @@ define.Module = class Module extends define.Base {
 	exec(){
 		this.exports = {};
 
-		this.emit("pre-exec");
+		// token ends with "/", example:
+		// "path/thing/" --> "path/thing/thing.js"
+		if (token[token.length-1] === "/"){
+			token = token + parts[parts.length-2] + ".js";
 
-		// log if no dependents
-		const log = this.log.if(!this.dependents.length);
-		
-		log.group(this.id);
-		const ret = this.factory.call(this.ctx || this, this.require.bind(this), this.exports, this);
-		log.end();
-
-		if (typeof ret !== "undefined")
-			this.exports = ret;
-
-		this.emit("executed");
-
-		return this.exports;
-	}
-
-	// `this.token` is transformed into `this.id`
-	// todo: pass { id: "..." } to if already resolved...
-	resolve(token){ 
-		var id, 
-			parts;
-
-		// mimic the base path
-		if (token === "."){
-			if (!this.url)
-				throw "don't define with relative tokens";
-
-			parts = this.url.path.split("/");
-			id = this.url.path + parts[parts.length-2] + ".js";
-		} else {
-			parts = token.split("/");
-
-			// token ends with "/", ex: "path/thing/"
-			if (token[token.length-1] === "/"){
-				// repeat last part, ex: "path/thing/thing.js"
-				id = token + parts[parts.length-2] + ".js";
-
-			// last part doesn't contain a ".", ex: "path/thing"
-			} else if (parts[parts.length-1].indexOf(".") < 0){
-				// repeat last part, add ".js", ex: "path/thing/thing.js"
-				id = token + "/" + parts[parts.length-1] + ".js";
-			} else {
-				id = token;
-			}
-
-			if (id.indexOf("./") === 0){
-				if (!this.url)
-					throw "don't define with relative tokens";
-				id = this.url.path + id.replace("./", "");
-				// token = token.replace("./", ""); // nope - need to parse id->host/path
-			} else if (id[0] !== "/"){
-				id = "/" + define.path + "/" + id;
-			}
+		// last part doesn't contain a "."
+		// "path/thing" --> "path/thing/thing.js"
+		} else if (parts[parts.length-1].indexOf(".") < 0){
+			token = token + "/" + parts[parts.length-1] + ".js";
 		}
 
-		this.emit("resolved", token, id);
-		this.log(this.id, ".resolve(", token, ") =>", id);
-		return id;
-	}
+		if (token[0] !== "/")
+			token = "/" + Module.base + "/" + token;
 
 	import(token){
 		const module = new this.constructor(this.resolve(token));
@@ -364,12 +289,8 @@ define.Module = class Module extends define.Base {
 			this.queued = setTimeout(this.request.bind(this), 0);
 	}
 
-	require(token){
-		const module = this.get(token);
-		if (!module)
-			console.error("module not preloaded");
-		return module.exports;
-	}
+		return this.ready; // see import()
+	},
 
 	request(){
 		this.queued = false;
@@ -377,17 +298,7 @@ define.Module = class Module extends define.Base {
 		if (this.factory)
 			throw "request wasn't dequeued";
 
-		if (!this.requested){
-			this.script = document.createElement("script");
-			this.src = this.id;
-			this.script.src = this.src;
-			document.head.appendChild(this.script);
-			this.requested = true;
-			this.emit("requested");
-		} else {
-			throw "trying to re-request?"
-		}
-	}
+		this.log.end();
 
 	set_id(id){
 		if (this.id && this.id !== id)
@@ -440,21 +351,7 @@ define.Module = class Module extends define.Base {
 
 		if (this.queued)
 			clearTimeout(this.queued);
-
-		this.emit("defined");
-	}
-
-	id_from_src(){
-		if (!this.id){
-			const a = document.createElement("a");
-			a.href = document.currentScript.src;
-
-			this.set({
-				id: a.pathname,
-				log: true // might need to be adjusted
-			})
-		}
-	}
+	},
 
 	// set(value) is forwarded here, when value is non-pojo 
 	set$(arg){
@@ -490,229 +387,108 @@ define.Module = class Module extends define.Base {
 		return p;
 	}
 
-	static get(id){
-		if (!this.hasOwnProperty("modules"))
-			this.modules = {};
-		return this.modules[id]
-	}
+	request(){
+		this.queued = false;
+		
+		if (this.factory)
+			throw "request wasn't dequeued";
 
-	static set(id, module){
-		if (!this.hasOwnProperty("modules"))
-			this.modules = {};
-		if (this.modules[id])
-			throw "don't redefine a module";
-		this.modules[id] = module;
-		this.emit("new", module, id);
-	}
+		if (!this.requested){
+			this.script = document.createElement("script");
+			this.src = this.id;
+			this.script.src = this.src;
+			document.head.appendChild(this.script);
+			this.requested = true;
+		} else {
+			throw "trying to re-request?"
+		}
+	},
 
-	static url(original){
-		const a = document.createElement("a");
-		a.href = original;
-		return {
-			original: original,
-			url: a.href,
-			host: a.host,
-			hostname: a.hostname,
-			pathname: a.pathname,
-			path: a.pathname.substr(0, a.pathname.lastIndexOf('/') + 1)
-		};
-	}
-} 
+	request2: function(){
+		this.queued = false;
+		if (!this.defined && !this.requested){
+			this.xhr = new XMLHttpRequest();
+			this.xhr.addEventListener("load", this.functionize.bind(this));
+			this.xhr.open("GET", this.id);
+			this.xhr.send();
+			this.requested = true;
+		} else {
+			throw "trying to re-request?";
+		}
+	},
 
-window.dispatchEvent(new Event("define.debug"));
+	requireRegExp: function(){
+		return /require\s*\(['"]([^'"]+)['"]\);?/gm;
+	},
 
-// end
+	functionize: function(data){
+		var re = this.requireRegExp();
+		this.deps = [];
+		this.deps.push(re.exec(this.xhr.responseText)[1]);
+		console.log("functionize", this.xhr.responseText);
+	},
 
-define("logger", () => define.logger);
-define("Base/Base0", function(require, exports, module){
-
-function make_constructor(){
-	return function Constructor(...constructs){
-		if (!(this instanceof Constructor))
-			return new Constructor(...constructs);
-		return this.instantiate(...constructs);
+	render(){
+		this.views = this.views || [];
+		const view = ModuleView({ module: this });
+		this.views.push(view);
+		return view;
 	}
 }
 
-const Basic = module.exports = make_constructor();
+Module.base = "modules";
 
-Basic.assign = Basic.prototype.assign = function(...args){
-	for (arg of args)
-		for (const prop in arg)
-			this[prop] = arg[prop];
-	return this;
+Module.modules = {};
+
+// returns module or falsey
+Module.get = function(id){
+	return id && this.modules[id];
+		// id can be false, or undefined?
 };
 
-Basic.prototype.assign({
-	instantiate(){}
-});
+Module.set = function(id, module){
+	this.modules[id] = module;
+};
 
-Basic.assign({
-	make_constructor: make_constructor,
-	extend(...args){
-		const Ext = this.make_constructor(name);
-		Ext.assign = this.assign;
-		Ext.assign(this);
-		Ext.events = {};
-		Ext.prototype = Object.create(this.prototype);
-		Ext.prototype.constructor = Ext;
-		Ext.prototype.assign(...args);
-		return Ext;
+Module.doc = new Promise((res, rej) => {
+	if (/comp|loaded/.test(document.readyState)){
+		res();
+	} else {
+		document.addEventListener("DOMContentLoaded", res);
 	}
-});
 
-}); // end
+// Module.url = function(token){
+// 	var a = document.createElement("a");
+// 	a.href = token;
+// 	return {
+// 		token: token,
+// 		url: a.href,
+// 		host: a.host,
+// 		hostname: a.hostname,
+// 		pathname: a.pathname
+// 	};
+// };
 
-define("mixin/events.js", function(require, exports, module){
+const STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+const ARGUMENT_NAMES = /([^\s,]+)/g;
 
-const events = module.exports = {
-	on(event, cb){
-		var cbs = this.events[event];
-		if (!cbs)
-			cbs = this.events[event] = [];
-		cbs.push(cb);
-		return this;
-	},
-	emit(event, ...args){
-		const cbs = this.events[event];
-		if (cbs && cbs.length)
-			for (const cb of cbs)
-				cb.apply(this, ...args);
-		return this;
-	},
-	off: function(event, cbForRemoval){
-		const cbs = this.events[event];
-		if (cbs)
-			for (var i = 0; i < cbs.length; i++)
-				if (cbs[i] === cbForRemoval)
-					cbs.splice(i, 1);
-		return this;
-	}
+Module.params = function(fn){
+	const fnStr = fn.toString().replace(STRIP_COMMENTS, '');
+	var result = fnStr.slice(fnStr.indexOf('(')+1, fnStr.indexOf(')')).match(ARGUMENT_NAMES);
+	if (result === null)
+		result = [];
+	// console.log(result);
+	return result;
 };
 
 }); // end
 
-define("mixin/set.js", function(require, exports, module){
+Module.Base = Base;
+Module.mixin = {
+	assign: Base.assign,
+	events: events,
 
-const set = module.exports = function(...args){
-	if (this._set)
-		this._set(...args); // pre .set() hook
-
-	for (const arg of args){
-		// pojo arg
-		if (arg && arg.constructor === Object){
-
-			// iterate over arg props
-			for (var j in arg){
-
-				// set_*
-				if (this["set_" + j]){
-					this["set_" + j](arg[j]);
-					// create a .set_assign() method that simply calls assign with the arg...
-
-				// "assign" prop will just call assign
-				} else if (j === "assign") {
-					this.assign(arg[j]);
-
-				} else if (this[j] && this[j].set){
-					this[j].set(arg[j]);
-
-				// existing prop is a pojo - "extend" it
-				} else if (this[j] && this[j].constructor === Object){
-
-					// make sure its safe
-					if (this.hasOwnProperty(j))
-						set.call(this[j], arg[j]);
-
-					// if not, protect the prototype
-					else {
-						this[j] = set.call(Object.create(this[j]), arg[j]);
-					}
-
-				// everything else, assign
-				} else {
-					// basically just arrays and fns...
-					// console.warn("what are you", arg[j]);
-					this[j] = arg[j];
-				}
-			}
-
-		// non-pojo arg
-		} else if (this.set$){
-			// auto apply if arg is array?
-			this.set$(arg);
-
-		// oops
-		} else {
-			console.warn("not sure what to do with", arg);
-		}
-	}
-
-	if (this.set_)
-		this.set_(...args); // post .set() hook
-
-	return this; // important
 };
-
-}); // end
-
-define("Base", 
-	["./Base0", "mixin/set.js", "mixin/events.js", "logger"], 
-	function(require, exports, module){
-////////
-
-const logger = require("logger");
-const Base0 = require("./Base0");
-const set = require("mixin/set.js");
-const events = require("mixin/events.js");
-
-const Base = module.exports = function(...constructs){
-	if (!(this instanceof Base))
-		return new Base(...constructs);
-	this.events = {};
-	return this.instantiate(...constructs);
-};
-
-Base.assign = Base.prototype.assign = Base0.assign;
-
-Base.prototype.assign(events, {
-	instantiate(){},
-	set: set,
-	log: logger(),
-	set_log(value){
-		this.log = logger(value);
-	}
-});
-
-Base.assign(events, {
-	events: {},
-	extend(...args){
-		const name = typeof args[0] === "string" ? args.shift() : this.name + "Ext";
-		const Ext = this.extend_base(name);
-		Ext.assign = this.assign;
-		Ext.assign(this);
-		Ext.events = {};
-		Ext.prototype = Object.create(this.prototype);
-		Ext.prototype.constructor = Ext;
-		Ext.prototype.set(...args);
-		this.emit("extended", Ext);
-		return Ext;
-	},
-	extend_base(name){
-		eval("var " + name + ";");
-		var constructor = eval("(" + name + " = function(...constructs){\r\n\
-			if (!(this instanceof " + name + "))\r\n\
-				return new " + name + "(...constructs);\r\n\
-			this.events = {};\r\n\
-			return this.instantiate(...constructs);\r\n\
-		});");
-		return constructor;
-	}
-});
-
-}); // end
-
-define("is", function(require, exports, module){
 
 const is = module.exports = {
 	arr: function(value){
@@ -1130,159 +906,3 @@ View.Span = View.extend("Span", {
 });
 
 }); // end
-
-define("Test", ["Base", "View"], function(require){
-
-	var Base = require("Base");
-	var View = require("View");
-	
-	var stylesheet = View({tag: "link"})
-		.attr("rel", "stylesheet")
-		.attr("href", "/simple/modules/Test/Test.css");
-	document.head.appendChild(stylesheet.el);
-
-	var body = View({
-		el: document.body
-	});
-
-	var Test = Base.extend({
-		instantiate: function(name, fn){
-			this.name = name;
-			this.fn = fn;
-
-			this.pass = 0;
-			this.fail = 0;
-
-			this.container = this.container || body;
-
-			this.initialize();
-		},
-		initialize: function(){
-			if (this.shouldRun())
-				this.render();
-		},
-		render: function(){
-			this.view = View().addClass('test').append({
-				bar: View(this.label()).click(this.activate.bind(this)),
-				content: View(),
-				footer: View()
-			});
-
-			this.view.content.append(this.exec.bind(this));
-
-			this.view.addClass("active");
-
-			if (this.pass > 0)
-				this.view.footer.append("Passed " + this.pass);
-			if (this.fail > 0)
-				this.view.footer.append("Failed " + this.fail);
-
-			if (!this.view.parent)
-				this.view.appendTo(this.container);
-		},
-		activate: function(){
-			window.location.hash = this.name;
-			window.location.reload();
-		},
-		label: function(){
-			return (this.match() ? "#" : "") + this.name;
-		},
-		exec: function(){
-			console.group(this.label());
-			
-			Test.set_captor(this);
-
-				// run the test
-				this.fn();
-
-			Test.restore_captor();
-			console.groupEnd();
-		},
-		assert: function(value){
-			if (value){
-				this.pass++;
-			} else {
-				console.error("Assertion failed");
-				this.fail++;
-			}
-		},
-		shouldRun: function(){
-			return !window.location.hash || this.match();
-		},
-		match: function(){
-			return window.location.hash.substring(1) === this.name;
-		}
-	});
-
-	Test.assign({
-		previous_captors: [],
-		set_captor: function(view){
-			this.previous_captors.push(this.captor);
-			this.captor = view;
-		},
-		restore_captor: function(){
-			this.captor = this.previous_captors.pop();
-		},
-		assert: function(value){
-			if (Test.captor)
-				Test.captor.assert(value);
-			else
-				console.error("whoops");
-		},
-		controls: function(){
-			var controls = View().addClass("test-controls").append({
-				reset: View({tag:"button"}, "reset").click(function(){
-					Test.reset();
-				})
-			});
-			document.body.appendChild(controls.el);
-		},
-		reset: function(){
-			window.location.href = window.location.href.split('#')[0];
-		}
-	});
-
-	window.addEventListener("hashchange", function(){
-		window.location.reload();
-	});
-	console.warn("auto refresh on window.hashchange event?");
-
-	return Test;
-});
-define("server", ["logger"], function(require, exports, module){
-	const logger = require("logger");
-	const log = logger(true);
-
-	const server = module.exports = new WebSocket("ws://" + window.location.host);
-
-	server.addEventListener("open", function(){
-		log("server connected");
-	});
-
-	server.addEventListener("message", function(e){
-		if (e.data === "reload"){
-			window.location.reload();
-		} else {
-			log("message from server", e);
-		}
-	});
-})
-define("simple", 
-	{ log: false },
-	["Base", "logger", "is", "mixin", "View", "Test", "server"], 
-	function(require, exports, module){
-////////
-
-window.Base = require("Base");
-window.logger = require("logger");
-window.is = require("is");
-window.mixin = require("mixin");
-window.View = require("View");
-window.Test = require("Test");
-window.server = require("server");
-
-module.exports = "so simple";
-
-}); // end
-
-simple = define;

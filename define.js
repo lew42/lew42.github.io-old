@@ -18,30 +18,6 @@ define.P = function(){
 	return p;
 };
 
-define.doc = new Promise((res, rej) => {
-	if (/comp|loaded/.test(document.readyState))
-		res();
-	else
-		document.addEventListener("DOMContentLoaded", res);
-});
-
-define.new = function(){
-	const new_define = function(...args){
-		return new new_define.Module(...args);
-	};
-	new_define.path = define.path;
-	new_define.P = define.P;
-	new_define.doc = define.doc;
-	new_define.new = define.new;
-	new_define.logger = define.logger;
-	new_define.Base = class Base extends define.Base {};
-	new_define.Module = class Module extends define.Module {};
-	new_define.Module.modules = {};
-	return new_define;
-};
-
-// end
-
 define.logger = (function(){
 	const logger = function(value){
 		if (typeof value === "undefined"){
@@ -266,7 +242,7 @@ define.Module = class Module extends define.Base {
 
 	constructor(...args){
 		super();
-		this.constructor.emit("construct", this, args);
+		this.debug = define.logger(this.log);
 		return (this.get(args[0]) || this.initialize()).set(...args);
 	}
 
@@ -341,8 +317,7 @@ define.Module = class Module extends define.Base {
 			}
 		}
 
-		this.emit("resolved", token, id);
-		this.log(this.id, ".resolve(", token, ") =>", id);
+		this.debug(this.id, ".resolve(", token, ") =>", id);
 		return id;
 	}
 
@@ -517,8 +492,4 @@ define.Module = class Module extends define.Base {
 			path: a.pathname.substr(0, a.pathname.lastIndexOf('/') + 1)
 		};
 	}
-} 
-
-window.dispatchEvent(new Event("define.debug"));
-
-// end
+}
