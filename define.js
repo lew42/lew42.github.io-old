@@ -18,9 +18,35 @@ define.P = function(){
 	return p;
 };
 
+define.doc = new Promise((res, rej) => {
+	if (/comp|loaded/.test(document.readyState))
+		res();
+	else
+		document.addEventListener("DOMContentLoaded", res);
+});
+
+define.new = function(){
+	const new_define = function(...args){
+		return new new_define.Module(...args);
+	};
+	new_define.path = define.path;
+	new_define.P = define.P;
+	new_define.doc = define.doc;
+	new_define.new = define.new;
+	new_define.logger = define.logger;
+	new_define.Base = class Base extends define.Base {};
+	new_define.Module = class Module extends define.Module {};
+	new_define.Module.modules = {};
+	return new_define;
+};
+
+// end
+
 define.logger = (function(){
 	const logger = function(value){
-		if (typeof value === "function" && value.logger){
+		if (typeof value === "undefined"){
+			return logger.auto;
+		} else if (typeof value === "function" && value.logger){
 			return value;
 		} else if (value){
 			return logger.active;
@@ -32,29 +58,60 @@ define.logger = (function(){
 
 	const noop = function(){};
 
+	// 3 modes
 	const active = logger.active = console.log.bind(console);
+	const auto = logger.auto = function(){};
 	const inactive = logger.inactive = function(){};
 	
 	const console_methods = ["log", "group", "groupCollapsed", "groupEnd", "debug", "trace", "error", "warn", "info", "time", "timeEnd", "dir"];
 	
 	for (const method of console_methods){
 		active[method] = console[method].bind(console);
+		auto[method] = console[method].bind(console);
 		inactive[method] = noop;
 	}
 
-	// some references
-	active.logger = inactive.logger = logger;
-	active.active = inactive.active = active;
-	inactive.inactive = active.inactive = inactive;
+	
+	// log.if() is the magic behind the "auto" mode
 
-	// some flags
-	active.is_active = true;
-	inactive.is_active = false;
+	// always on
+	active.if = function(cond, ...args){
+		if (args.length)
+			active(...args);
+		return active;
+	};
+
+	// maybe on
+	auto.if = function(cond, ...args){
+		if (cond){
+			if (args.length)
+				active(...args);
+			return active;
+		} else {
+			return inactive;
+		}
+	};
+
+	// always off
+	inactive.if = function(cond, ...args){
+		return inactive;
+	}
+
+	// some references
+	active.logger = auto.logger = inactive.logger = logger;
+	active.active = auto.active = inactive.active = active;
+	active.auto = auto.auto = inactive.auto = auto;
+	active.inactive = auto.inactive = inactive.inactive = inactive;
+
+	// use if (this.log === this.log.auto) to check logger mode
 	
 	// alias these long methods
 	active.groupc = console.groupCollapsed.bind(console);
+	auto.groupc = noop;
 	inactive.groupc = noop;
+
 	active.end = console.groupEnd.bind(console);
+	auto.end = noop;
 	inactive.end = noop;
 
 	return logger;
@@ -91,7 +148,7 @@ define.Base = class Base {
 		const cbs = this.events[event];
 		if (cbs && cbs.length)
 			for (const cb of cbs)
-				cb.apply(this, ...args);
+				cb.apply(this, args);
 		return this;
 	}
 
@@ -191,7 +248,7 @@ define.Base = class Base {
 		const cbs = this.events[event];
 		if (cbs && cbs.length)
 			for (const cb of cbs)
-				cb.apply(this, ...args);
+				cb.apply(this, args);
 		return this;
 	}
 
@@ -209,16 +266,16 @@ define.Module = class Module extends define.Base {
 
 	constructor(...args){
 		super();
-		this.debug = define.logger(this.log);
+		this.constructor.emit("construct", this, args);
 		return (this.get(args[0]) || this.initialize()).set(...args);
 	}
 
 	get(token){
-		return typeof token === "string" && Module.get(this.resolve(token));
+		return typeof token === "string" && this.constructor.get(this.resolve(token));
 	}
 
 	initialize(...args){
-		this.ready = Module.P();
+		this.ready = this.constructor.P();
 		this.dependencies = [];
 		this.dependents = [];
 
@@ -228,20 +285,25 @@ define.Module = class Module extends define.Base {
 	exec(){
 		this.exports = {};
 
+		this.emit("pre-exec");
+
 		// log if no dependents
-		const log = define.logger(!this.dependents.length);
+		const log = this.log.if(!this.dependents.length);
 		
 		log.group(this.id);
-		const ret = this.factory.call(this, this.require.bind(this), this.exports, this);
+		const ret = this.factory.call(this.ctx || this, this.require.bind(this), this.exports, this);
 		log.end();
 
 		if (typeof ret !== "undefined")
 			this.exports = ret;
 
+		this.emit("executed");
+
 		return this.exports;
 	}
 
 	// `this.token` is transformed into `this.id`
+	// todo: pass { id: "..." } to if already resolved...
 	resolve(token){ 
 		var id, 
 			parts;
@@ -279,7 +341,8 @@ define.Module = class Module extends define.Base {
 			}
 		}
 
-		this.debug(this.id, ".resolve(", token, ") =>", id);
+		this.emit("resolved", token, id);
+		this.log(this.id, ".resolve(", token, ") =>", id);
 		return id;
 	}
 
@@ -304,7 +367,7 @@ define.Module = class Module extends define.Base {
 	require(token){
 		const module = this.get(token);
 		if (!module)
-			throw "module not preloaded";
+			console.error("module not preloaded");
 		return module.exports;
 	}
 
@@ -320,6 +383,7 @@ define.Module = class Module extends define.Base {
 			this.script.src = this.src;
 			document.head.appendChild(this.script);
 			this.requested = true;
+			this.emit("requested");
 		} else {
 			throw "trying to re-request?"
 		}
@@ -376,6 +440,8 @@ define.Module = class Module extends define.Base {
 
 		if (this.queued)
 			clearTimeout(this.queued);
+
+		this.emit("defined");
 	}
 
 	id_from_src(){
@@ -425,36 +491,18 @@ define.Module = class Module extends define.Base {
 	}
 
 	static get(id){
-		if (!this.modules)
+		if (!this.hasOwnProperty("modules"))
 			this.modules = {};
 		return this.modules[id]
 	}
 
 	static set(id, module){
-		if (!this.modules)
+		if (!this.hasOwnProperty("modules"))
 			this.modules = {};
 		if (this.modules[id])
 			throw "don't redefine a module";
 		this.modules[id] = module;
 		this.emit("new", module, id);
-	}
-
-	static doc(...cbs){
-		if (!this.document_ready){
-			this.document_ready = new Promise((res, rej) => {
-				if (/comp|loaded/.test(document.readyState))
-					res();
-				else
-					document.addEventListener("DOMContentLoaded", res);
-			});
-		}
-
-		return this.document_ready.then(...cbs);
-	}
-
-	static base(base){
-		if (base) this._base = base;
-		return this._base || "modules";
 	}
 
 	static url(original){
@@ -469,4 +517,8 @@ define.Module = class Module extends define.Base {
 			path: a.pathname.substr(0, a.pathname.lastIndexOf('/') + 1)
 		};
 	}
-}
+} 
+
+window.dispatchEvent(new Event("define.debug"));
+
+// end
