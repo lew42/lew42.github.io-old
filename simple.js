@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 define = function(...args){
 	return new define.Module(...args);
 };
@@ -63,6 +64,10 @@ define.table = function(){
 // end
 
 define.logger = (function(){
+=======
+;(function(){
+const logger = (function(){
+>>>>>>> master
 	const logger = function(value){
 		if (typeof value === "undefined"){
 			return logger.auto;
@@ -264,6 +269,7 @@ define.Base = class Base {
 		return this;
 	}
 
+<<<<<<< HEAD
 	static emit(event, ...args){
 		const cbs = this.events[event];
 		if (cbs && cbs.length)
@@ -271,6 +277,32 @@ define.Base = class Base {
 				cb.apply(this, args);
 		return this;
 	}
+=======
+Base.assign(events, {
+	events: {},
+	extend(...args){
+		const name = typeof args[0] === "string" ? args.shift() : this.name + "Ext";
+		const Ext = this.extend_base(name);
+		Ext.assign = this.assign;
+		Ext.assign(this);
+		Ext.events = {};
+		Ext.prototype = Object.create(this.prototype);
+		Ext.prototype.constructor = Ext;
+		Ext.prototype.set(...args);
+		this.emit("extended", Ext);
+		return Ext;
+	},
+	extend_base(name){
+		eval("var " + name + ";");
+		var constructor = eval("(" + name + " = function(...constructs){\r\n\
+			if (!(this instanceof " + name + "))\r\n\
+				return new " + name + "(...constructs);\r\n\
+			this.events = {};\r\n\
+			return this.instantiate(...constructs);\r\n\
+		});");
+		return constructor;
+	},
+>>>>>>> master
 
 	static off(event, cbForRemoval){
 		const cbs = this.events[event];
@@ -284,6 +316,7 @@ define.Base = class Base {
 
 define.Module = class Module extends define.Base {
 
+<<<<<<< HEAD
 	constructor(...args){
 		super();
 		this.constructor.emit("construct", this, args);
@@ -296,6 +329,18 @@ define.Module = class Module extends define.Base {
 
 	initialize(...args){
 		this.ready = this.constructor.P();
+=======
+	instantiate(...args){
+		return (this.get(args[0]) || this.initialize()).set(...args);
+	}
+
+	get: function(token){
+		return typeof token === "string" && Module.get(this.resolve(token));
+	},
+
+	initialize(...args){
+		this.ready = P();
+>>>>>>> master
 		this.dependencies = [];
 		this.dependents = [];
 
@@ -305,6 +350,7 @@ define.Module = class Module extends define.Base {
 	exec(){
 		this.exports = {};
 
+<<<<<<< HEAD
 		this.emit("pre-exec");
 
 		// log if no dependents
@@ -365,6 +411,21 @@ define.Module = class Module extends define.Base {
 		// this.log(this.id, ".resolve(", token, ") =>", id);
 		return id;
 	}
+=======
+		// token ends with "/", example:
+		// "path/thing/" --> "path/thing/thing.js"
+		if (token[token.length-1] === "/"){
+			token = token + parts[parts.length-2] + ".js";
+
+		// last part doesn't contain a "."
+		// "path/thing" --> "path/thing/thing.js"
+		} else if (parts[parts.length-1].indexOf(".") < 0){
+			token = token + "/" + parts[parts.length-1] + ".js";
+		}
+
+		if (token[0] !== "/")
+			token = "/" + Module.base + "/" + token;
+>>>>>>> master
 
 	import(token){
 		const module = new this.constructor(this.resolve(token));
@@ -384,12 +445,17 @@ define.Module = class Module extends define.Base {
 			this.queued = setTimeout(this.request.bind(this), 0);
 	}
 
+<<<<<<< HEAD
 	require(token){
 		const module = this.get(token);
 		if (!module)
 			console.error("module not preloaded");
 		return module.exports;
 	}
+=======
+		return this.ready; // see import()
+	},
+>>>>>>> master
 
 	request(){
 		this.queued = false;
@@ -397,6 +463,7 @@ define.Module = class Module extends define.Base {
 		if (this.factory)
 			throw "request wasn't dequeued";
 
+<<<<<<< HEAD
 		if (!this.requested){
 			this.script = document.createElement("script");
 			this.src = this.id;
@@ -408,6 +475,9 @@ define.Module = class Module extends define.Base {
 			throw "trying to re-request?"
 		}
 	}
+=======
+		this.log.end();
+>>>>>>> master
 
 	set_id(id){
 		if (this.id && this.id !== id)
@@ -460,6 +530,7 @@ define.Module = class Module extends define.Base {
 
 		if (this.queued)
 			clearTimeout(this.queued);
+<<<<<<< HEAD
 
 		this.emit("defined");
 	}
@@ -475,6 +546,9 @@ define.Module = class Module extends define.Base {
 			})
 		}
 	}
+=======
+	},
+>>>>>>> master
 
 	// set(value) is forwarded here, when value is non-pojo 
 	set$(arg){
@@ -510,6 +584,7 @@ define.Module = class Module extends define.Base {
 		return p;
 	}
 
+<<<<<<< HEAD
 	static get(id){
 		if (!this.hasOwnProperty("modules"))
 			this.modules = {};
@@ -554,46 +629,62 @@ define("logger", () => define.logger);
 
 })();
 define("Base/Base0", function(require, exports, module){
+=======
+	request(){
+		this.queued = false;
+		
+		if (this.factory)
+			throw "request wasn't dequeued";
+>>>>>>> master
 
-function make_constructor(){
-	return function Constructor(...constructs){
-		if (!(this instanceof Constructor))
-			return new Constructor(...constructs);
-		return this.instantiate(...constructs);
+		if (!this.requested){
+			this.script = document.createElement("script");
+			this.src = this.id;
+			this.script.src = this.src;
+			document.head.appendChild(this.script);
+			this.requested = true;
+		} else {
+			throw "trying to re-request?"
+		}
+	},
+
+	request2: function(){
+		this.queued = false;
+		if (!this.defined && !this.requested){
+			this.xhr = new XMLHttpRequest();
+			this.xhr.addEventListener("load", this.functionize.bind(this));
+			this.xhr.open("GET", this.id);
+			this.xhr.send();
+			this.requested = true;
+		} else {
+			throw "trying to re-request?";
+		}
+	},
+
+	requireRegExp: function(){
+		return /require\s*\(['"]([^'"]+)['"]\);?/gm;
+	},
+
+	functionize: function(data){
+		var re = this.requireRegExp();
+		this.deps = [];
+		this.deps.push(re.exec(this.xhr.responseText)[1]);
+		console.log("functionize", this.xhr.responseText);
+	},
+
+	render(){
+		this.views = this.views || [];
+		const view = ModuleView({ module: this });
+		this.views.push(view);
+		return view;
 	}
 }
 
-const Basic = module.exports = make_constructor();
+Module.base = "modules";
 
-Basic.assign = Basic.prototype.assign = function(...args){
-	for (arg of args)
-		for (const prop in arg)
-			this[prop] = arg[prop];
-	return this;
-};
+Module.modules = {};
 
-Basic.prototype.assign({
-	instantiate(){}
-});
-
-Basic.assign({
-	make_constructor: make_constructor,
-	extend(...args){
-		const Ext = this.make_constructor(name);
-		Ext.assign = this.assign;
-		Ext.assign(this);
-		Ext.events = {};
-		Ext.prototype = Object.create(this.prototype);
-		Ext.prototype.constructor = Ext;
-		Ext.prototype.assign(...args);
-		return Ext;
-	}
-});
-
-}); // end
-
-define("mixin/events.js", function(require, exports, module){
-
+<<<<<<< HEAD
 const events = module.exports = {
 	on(event, cb){
 		var cbs = this.events[event];
@@ -617,131 +708,57 @@ const events = module.exports = {
 					cbs.splice(i, 1);
 		return this;
 	}
+=======
+// returns module or falsey
+Module.get = function(id){
+	return id && this.modules[id];
+		// id can be false, or undefined?
+>>>>>>> master
+};
+
+Module.set = function(id, module){
+	this.modules[id] = module;
+};
+
+Module.doc = new Promise((res, rej) => {
+	if (/comp|loaded/.test(document.readyState)){
+		res();
+	} else {
+		document.addEventListener("DOMContentLoaded", res);
+	}
+
+// Module.url = function(token){
+// 	var a = document.createElement("a");
+// 	a.href = token;
+// 	return {
+// 		token: token,
+// 		url: a.href,
+// 		host: a.host,
+// 		hostname: a.hostname,
+// 		pathname: a.pathname
+// 	};
+// };
+
+const STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+const ARGUMENT_NAMES = /([^\s,]+)/g;
+
+Module.params = function(fn){
+	const fnStr = fn.toString().replace(STRIP_COMMENTS, '');
+	var result = fnStr.slice(fnStr.indexOf('(')+1, fnStr.indexOf(')')).match(ARGUMENT_NAMES);
+	if (result === null)
+		result = [];
+	// console.log(result);
+	return result;
 };
 
 }); // end
 
-define("mixin/set.js", function(require, exports, module){
+Module.Base = Base;
+Module.mixin = {
+	assign: Base.assign,
+	events: events,
 
-const set = module.exports = function(...args){
-	if (this._set)
-		this._set(...args); // pre .set() hook
-
-	for (const arg of args){
-		// pojo arg
-		if (arg && arg.constructor === Object){
-
-			// iterate over arg props
-			for (var j in arg){
-
-				// set_*
-				if (this["set_" + j]){
-					this["set_" + j](arg[j]);
-					// create a .set_assign() method that simply calls assign with the arg...
-
-				// "assign" prop will just call assign
-				} else if (j === "assign") {
-					this.assign(arg[j]);
-
-				} else if (this[j] && this[j].set){
-					this[j].set(arg[j]);
-
-				// existing prop is a pojo - "extend" it
-				} else if (this[j] && this[j].constructor === Object){
-
-					// make sure its safe
-					if (this.hasOwnProperty(j))
-						set.call(this[j], arg[j]);
-
-					// if not, protect the prototype
-					else {
-						this[j] = set.call(Object.create(this[j]), arg[j]);
-					}
-
-				// everything else, assign
-				} else {
-					// basically just arrays and fns...
-					// console.warn("what are you", arg[j]);
-					this[j] = arg[j];
-				}
-			}
-
-		// non-pojo arg
-		} else if (this.set$){
-			// auto apply if arg is array?
-			this.set$(arg);
-
-		// oops
-		} else {
-			console.warn("not sure what to do with", arg);
-		}
-	}
-
-	if (this.set_)
-		this.set_(...args); // post .set() hook
-
-	return this; // important
 };
-
-}); // end
-
-define("Base", 
-	["./Base0", "mixin/set.js", "mixin/events.js", "logger"], 
-	function(require, exports, module){
-////////
-
-const logger = require("logger");
-const Base0 = require("./Base0");
-const set = require("mixin/set.js");
-const events = require("mixin/events.js");
-
-const Base = module.exports = function(...constructs){
-	if (!(this instanceof Base))
-		return new Base(...constructs);
-	this.events = {};
-	return this.instantiate(...constructs);
-};
-
-Base.assign = Base.prototype.assign = Base0.assign;
-
-Base.prototype.assign(events, {
-	instantiate(){},
-	set: set,
-	log: logger(),
-	set_log(value){
-		this.log = logger(value);
-	}
-});
-
-Base.assign(events, {
-	events: {},
-	extend(...args){
-		const name = typeof args[0] === "string" ? args.shift() : this.name + "Ext";
-		const Ext = this.extend_base(name);
-		Ext.assign = this.assign;
-		Ext.assign(this);
-		Ext.events = {};
-		Ext.prototype = Object.create(this.prototype);
-		Ext.prototype.constructor = Ext;
-		Ext.prototype.set(...args);
-		this.emit("extended", Ext);
-		return Ext;
-	},
-	extend_base(name){
-		eval("var " + name + ";");
-		var constructor = eval("(" + name + " = function(...constructs){\r\n\
-			if (!(this instanceof " + name + "))\r\n\
-				return new " + name + "(...constructs);\r\n\
-			this.events = {};\r\n\
-			return this.instantiate(...constructs);\r\n\
-		});");
-		return constructor;
-	}
-});
-
-}); // end
-
-define("is", function(require, exports, module){
 
 const is = module.exports = {
 	arr: function(value){
@@ -850,19 +867,33 @@ const View = module.exports = Base.extend({
 	name: "View",
 	tag: "div",
 	instantiate(...args){
+<<<<<<< HEAD
 		this.render_el(args[0] && args[0].tag);
+=======
+		this.render_el();
+>>>>>>> master
 		this.set(...args);
 		this.append_fn(this.render);
 		this.initialize();
 	},
 	initialize: function(){
+<<<<<<< HEAD
+=======
+		this.append_fn(this.render);
+>>>>>>> master
 		this.init();
 	},
 	init: function(){},
 	render: function(){},
+<<<<<<< HEAD
 	render_el: function(tag){
 		if (!this.hasOwnProperty("el")){
 			this.el = document.createElement(tag || this.tag);
+=======
+	render_el: function(){
+		if (!this.hasOwnProperty("el")){
+			this.el = document.createElement(this.tag);
+>>>>>>> master
 
 			View.captor && View.captor.append(this);
 
@@ -951,6 +982,10 @@ const View = module.exports = Base.extend({
 		if (value && value.el){
 			view = value;
 		} else {
+<<<<<<< HEAD
+=======
+			console.log(this.tag);
+>>>>>>> master
 			view = (new View({tag: this.tag})).append(value);
 		}
 
@@ -1006,8 +1041,15 @@ const View = module.exports = Base.extend({
 		return this;
 	},
 
+<<<<<<< HEAD
 	addClass(...args){
 		for (const arg of args){
+=======
+	addClass(){
+		var arg;
+		for (var i = 0; i < arguments.length; i++){
+			arg = arguments[i];
+>>>>>>> master
 			if (is.arr(arg))
 				this.addClass.apply(this, arg);
 			else if (arg && arg.indexOf(" ") > -1)
@@ -1177,6 +1219,7 @@ View.V = View.extend("V", {
 			} else if (token.indexOf(".") === 0){
 				this.smart_classes(token);
 				args.shift();
+<<<<<<< HEAD
 			}
 		}
 	},
@@ -1264,55 +1307,17 @@ define("Test", ["Base", "View"], function(require){
 			} else {
 				console.error("Assertion failed");
 				this.fail++;
+=======
+>>>>>>> master
 			}
-		},
-		shouldRun: function(){
-			return !window.location.hash || this.match();
-		},
-		match: function(){
-			return window.location.hash.substring(1) === this.name;
 		}
-	});
-
-	Test.assign({
-		previous_captors: [],
-		set_captor: function(view){
-			this.previous_captors.push(this.captor);
-			this.captor = view;
-		},
-		restore_captor: function(){
-			this.captor = this.previous_captors.pop();
-		},
-		assert: function(value){
-			if (Test.captor)
-				Test.captor.assert(value);
-			else
-				console.error("whoops");
-		},
-		controls: function(){
-			var controls = View().addClass("test-controls").append({
-				reset: View({tag:"button"}, "reset").click(function(){
-					Test.reset();
-				})
-			});
-			document.body.appendChild(controls.el);
-		},
-		reset: function(){
-			window.location.href = window.location.href.split('#')[0];
-		}
-	});
-
-	window.addEventListener("hashchange", function(){
-		window.location.reload();
-	});
-	console.warn("auto refresh on window.hashchange event?");
-
-	return Test;
+	},
+	smart_classes(token){
+		this.classes = token.split(".").slice(1);
+	}
 });
-define("server", ["logger"], function(require, exports, module){
-	const logger = require("logger");
-	const log = logger(true);
 
+<<<<<<< HEAD
 	const server = module.exports = new WebSocket("ws://" + window.location.host);
 
 	server.addEventListener("open", function(){
@@ -1344,6 +1349,11 @@ window.Test = require("Test");
 window.server = require("server");
 
 module.exports = "so simple";
+=======
+View.Span = View.extend("Span", {
+	tag: "span"
+});
+>>>>>>> master
 
 }); // end
 

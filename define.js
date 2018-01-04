@@ -18,6 +18,7 @@ define.P = function(){
 
 	return p;
 };
+<<<<<<< HEAD
 
 define.doc = new Promise((res, rej) => {
 	if (/comp|loaded/.test(document.readyState))
@@ -61,6 +62,8 @@ define.table = function(){
 	console.table(this.Module.modules);
 };
 // end
+=======
+>>>>>>> master
 
 define.logger = (function(){
 	const logger = function(value){
@@ -286,7 +289,11 @@ define.Module = class Module extends define.Base {
 
 	constructor(...args){
 		super();
+<<<<<<< HEAD
 		this.constructor.emit("construct", this, args);
+=======
+		this.debug = define.logger(this.log);
+>>>>>>> master
 		return (this.get(args[0]) || this.initialize()).set(...args);
 	}
 
@@ -361,8 +368,12 @@ define.Module = class Module extends define.Base {
 			}
 		}
 
+<<<<<<< HEAD
 		this.emit("resolved", token, id);
 		// this.log(this.id, ".resolve(", token, ") =>", id);
+=======
+		this.debug(this.id, ".resolve(", token, ") =>", id);
+>>>>>>> master
 		return id;
 	}
 
@@ -537,6 +548,7 @@ define.Module = class Module extends define.Base {
 			path: a.pathname.substr(0, a.pathname.lastIndexOf('/') + 1)
 		};
 	}
+<<<<<<< HEAD
 }
 
 define.Module.path = define.path || "modules";
@@ -544,3 +556,6 @@ define.Module.path = define.path || "modules";
 window.dispatchEvent(new Event("define.debug"));
 
 // end
+=======
+}
+>>>>>>> master
