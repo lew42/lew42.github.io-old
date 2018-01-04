@@ -1,31 +1,0 @@
-.StringObject {
-	background: #2b2b2b;
-	border-radius: 3px;
-	overflow: hidden;
-}
-
-.StringObject > .preview {
-	display: flex;
-}
-
-.StringObject > .preview > .name {
-    color: #dadada;
-    padding: 0.25em 0.5em;
-}
-.StringObject > .preview > .value {
-	background: white;
-	margin: 0.25em;
-	margin-left: auto;
-	padding: 0.1em 0.3em 0.1em 0.45em;
-	border-radius: 2px;
-}
-
-.StringObject > .children {
-padding-left: 0.5em;
-padding-top: 0.2em;
-background: #424242;
-}
-.StringObject > .children > .StringObject {
-	font-size: 0.8em;
-	margin-bottom: 0.1em;
-}

@@ -2,6 +2,7 @@ define = function(...args){
 	return new define.Module(...args);
 };
 
+// move this to Module.path
 define.path = "modules";
 
 define.P = function(){
@@ -25,6 +26,40 @@ define.doc = new Promise((res, rej) => {
 		document.addEventListener("DOMContentLoaded", res);
 });
 
+document.then = function(...args){
+	define.doc.then(...args);
+};
+
+define.new = function(){
+	const new_define = function(...args){
+		return new new_define.Module(...args);
+	};
+	new_define.path = define.path;
+	new_define.P = define.P;
+	new_define.doc = define.doc;
+	new_define.new = define.new;
+	new_define.logger = define.logger;
+	new_define.Base = class Base extends define.Base {};
+	new_define.Module = class Module extends define.Module {};
+	new_define.Module.modules = {};
+	return new_define;
+};
+
+define.debugger = function(){
+	this.await_debug = define.P();
+	document.addEventListener("keypress", e => {
+		if (e.code === "Space" && e.ctrlKey){
+			this.await_debug.resolve();
+			console.log("continue?");
+		}
+	});
+
+	return this.await_debug;
+};
+
+define.table = function(){
+	console.table(this.Module.modules);
+};
 // end
 
 define.logger = (function(){
@@ -133,7 +168,7 @@ define.Base = class Base {
 		const cbs = this.events[event];
 		if (cbs && cbs.length)
 			for (const cb of cbs)
-				cb.apply(this, ...args);
+				cb.apply(this, args);
 		return this;
 	}
 
@@ -233,7 +268,7 @@ define.Base = class Base {
 		const cbs = this.events[event];
 		if (cbs && cbs.length)
 			for (const cb of cbs)
-				cb.apply(this, ...args);
+				cb.apply(this, args);
 		return this;
 	}
 
@@ -251,15 +286,16 @@ define.Module = class Module extends define.Base {
 
 	constructor(...args){
 		super();
+		this.constructor.emit("construct", this, args);
 		return (this.get(args[0]) || this.initialize()).set(...args);
 	}
 
 	get(token){
-		return typeof token === "string" && Module.get(this.resolve(token));
+		return typeof token === "string" && this.constructor.get(this.resolve(token));
 	}
 
 	initialize(...args){
-		this.ready = Module.P();
+		this.ready = this.constructor.P();
 		this.dependencies = [];
 		this.dependents = [];
 
@@ -269,20 +305,25 @@ define.Module = class Module extends define.Base {
 	exec(){
 		this.exports = {};
 
+		this.emit("pre-exec");
+
 		// log if no dependents
 		const log = this.log.if(!this.dependents.length);
 		
 		log.group(this.id);
-		const ret = this.factory.call(this, this.require.bind(this), this.exports, this);
+		const ret = this.factory.call(this.ctx || this, this.require.bind(this), this.exports, this);
 		log.end();
 
 		if (typeof ret !== "undefined")
 			this.exports = ret;
 
+		this.emit("executed");
+
 		return this.exports;
 	}
 
 	// `this.token` is transformed into `this.id`
+	// todo: pass { id: "..." } to if already resolved...
 	resolve(token){ 
 		var id, 
 			parts;
@@ -316,11 +357,12 @@ define.Module = class Module extends define.Base {
 				id = this.url.path + id.replace("./", "");
 				// token = token.replace("./", ""); // nope - need to parse id->host/path
 			} else if (id[0] !== "/"){
-				id = "/" + define.path + "/" + id;
+				id = "/" + this.constructor.path + "/" + id;
 			}
 		}
 
-		this.log(this.id, ".resolve(", token, ") =>", id);
+		this.emit("resolved", token, id);
+		// this.log(this.id, ".resolve(", token, ") =>", id);
 		return id;
 	}
 
@@ -345,7 +387,7 @@ define.Module = class Module extends define.Base {
 	require(token){
 		const module = this.get(token);
 		if (!module)
-			throw "module not preloaded";
+			console.error("module not preloaded");
 		return module.exports;
 	}
 
@@ -361,6 +403,7 @@ define.Module = class Module extends define.Base {
 			this.script.src = this.src;
 			document.head.appendChild(this.script);
 			this.requested = true;
+			this.emit("requested");
 		} else {
 			throw "trying to re-request?"
 		}
@@ -372,10 +415,10 @@ define.Module = class Module extends define.Base {
 
 		if (!this.id){
 			this.id = id;
-			this.url = Module.url(this.id);
+			this.url = this.constructor.url(this.id);
 
 			// cache me
-			Module.set(this.id, this);
+			this.constructor.set(this.id, this);
 
 			this.emit("id", id);
 		} else {
@@ -417,6 +460,8 @@ define.Module = class Module extends define.Base {
 
 		if (this.queued)
 			clearTimeout(this.queued);
+
+		this.emit("defined");
 	}
 
 	id_from_src(){
@@ -466,13 +511,13 @@ define.Module = class Module extends define.Base {
 	}
 
 	static get(id){
-		if (!this.modules)
+		if (!this.hasOwnProperty("modules"))
 			this.modules = {};
 		return this.modules[id]
 	}
 
 	static set(id, module){
-		if (!this.modules)
+		if (!this.hasOwnProperty("modules"))
 			this.modules = {};
 		if (this.modules[id])
 			throw "don't redefine a module";
@@ -492,9 +537,22 @@ define.Module = class Module extends define.Base {
 			path: a.pathname.substr(0, a.pathname.lastIndexOf('/') + 1)
 		};
 	}
-} // end
+}
+
+define.Module.path = define.path || "modules";
+
+window.dispatchEvent(new Event("define.debug"));
+
+// end
+
+;(async function(){
+
+if (define.debug)
+	await define.debugger();
 
 define("logger", () => define.logger);
+
+})();
 define("Base/Base0", function(require, exports, module){
 
 function make_constructor(){
@@ -548,7 +606,7 @@ const events = module.exports = {
 		const cbs = this.events[event];
 		if (cbs && cbs.length)
 			for (const cb of cbs)
-				cb.apply(this, ...args);
+				cb.apply(this, args);
 		return this;
 	},
 	off: function(event, cbForRemoval){
@@ -731,6 +789,40 @@ define("mixin", ["./events.js", "./set.js"], function(require, exports){
 	exports.events = require("./events.js");
 	exports.set = require("./set.js");
 });
+define("Module", ["Base"], function(require, exports, module){
+////////
+
+const Base = require("Base");
+const proto = define.Module.prototype;
+
+const Module = module.exports = Base.extend("Module", {
+	instantiate(...args){
+		return (this.get(args[0]) || this.initialize()).set(...args);
+	},
+	get: proto.get,
+	initialize: proto.initialize,
+	exec: proto.exec,
+	resolve: proto.resolve,
+	import: proto.import,
+	register: proto.register,
+	require: proto.require,
+	request: proto.request,
+	set_id: proto.set_id,
+	set_token: proto.set_token,
+	set_deps: proto.set_deps,
+	set_factory: proto.set_factory,
+	id_from_src: proto.id_from_src,
+	set$: proto.set$
+});
+
+Module.P = define.Module.P;
+Module.get = define.Module.get;
+Module.set = define.Module.set;
+Module.url = define.Module.url;
+Module.path = "modules";
+
+}); // end
+
 define("View", 
 	["Base", "is"],
 	function(require, exports, module){
@@ -738,43 +830,61 @@ define("View",
 const is = require("is");
 const Base = require("Base");
 
+/*
+todo:  allow .set_classes to accept an object
+View({
+	classes: {
+		promise_like: thing.then(...) // use first arg as boolean to add/remove "promise_like" class
+		event_like: thing.on("whatever") // could return a "thenable"
+	}
+});
+
+You could automatically classify any thenable property..
+View(thing.on("active"))
+	--> view.thing = the event
+		or view.active...
+	--> as a thenable, we classify the "thing" class...
+*/
+
 const View = module.exports = Base.extend({
 	name: "View",
 	tag: "div",
 	instantiate(...args){
+		this.render_el(args[0] && args[0].tag);
 		this.set(...args);
+		this.append_fn(this.render);
 		this.initialize();
 	},
 	initialize: function(){
-		this.append(this.render);
 		this.init();
 	},
 	init: function(){},
 	render: function(){},
-	render_el: function(){
-		if (!this.el){
-			this.el = document.createElement(this.tag);
+	render_el: function(tag){
+		if (!this.hasOwnProperty("el")){
+			this.el = document.createElement(tag || this.tag);
 
 			View.captor && View.captor.append(this);
-
-			// if (this.name)
-			// 	this.addClass(this.name);
-
-			// if (this.type)
-			// 	this.addClass(this.type);
 
 			this.classes && this.addClass(this.classes);
 		}
 	},
+	// set_tag(tag){
+	// 	if (tag !== this.tag){
+	// 		this.tag = tag;
+	// 		delete this.el;
+	// 		this.render_el();
+	// 	}
+	// },
 	set$(arg){
 		if (is.pojo(arg)){
+			console.error("do you even happen?");
 			this.assign(arg);
 		} else {
 			this.append(arg);
 		}
 	},
 	set(...args){
-		this.render_el(); // in case it hasn't been
 		var hasBeenEmptied = false;
 		for (const arg of args){
 			// empty once if .set() will .append()
@@ -788,13 +898,8 @@ const View = module.exports = Base.extend({
 		}
 		return this;
 	},
-	append: function(){
-		var arg;
-
-		if (!this.el) this.render_el();
-
-		for (var i = 0; i < arguments.length; i++){
-			arg = arguments[i];
+	append(...args){
+		for (const arg of args){
 			if (arg && arg.el){
 				arg.parent = this;
 				this.el.appendChild(arg.el);
@@ -813,7 +918,8 @@ const View = module.exports = Base.extend({
 		}
 		return this;
 	},
-	append_fn: function(fn){
+
+	append_fn(fn){
 		View.set_captor(this);
 		var value = fn.call(this, this);
 		View.restore_captor();
@@ -821,7 +927,8 @@ const View = module.exports = Base.extend({
 		if (is.def(value))
 			this.append(value);
 	},
-	append_pojo: function(pojo){
+
+	append_pojo(pojo){
 		if (pojo.path){
 			this.append_path(pojo);
 		} else {
@@ -830,19 +937,21 @@ const View = module.exports = Base.extend({
 			}
 		}
 	},
-	append_obj: function(obj){
+
+	append_obj(obj){
 		if (obj.render){
 			this.append(obj.render())
 		} else {
 			console.warn("not sure here");
 		}
 	},
-	append_prop: function(prop, value){
+
+	append_prop(prop, value){
 		var view;
 		if (value && value.el){
 			view = value;
 		} else {
-			view = View().append(value);
+			view = (new View({tag: this.tag})).append(value);
 		}
 
 		this[prop] = view
@@ -851,7 +960,9 @@ const View = module.exports = Base.extend({
 
 		return this;
 	},
-	append_path: function(path){
+
+	append_path(path){
+		console.warn("experimental...");
 		if (is.obj(path) && path.path){
 			if (path.target){
 				this.path(path.target).append(this.path(path.path));
@@ -862,7 +973,8 @@ const View = module.exports = Base.extend({
 
 		return this;
 	},
-	path: function(path){
+
+	path(path){
 		var parts, value = this;
 		if (is.str(path)){
 			parts = path.split(".");
@@ -884,7 +996,8 @@ const View = module.exports = Base.extend({
 
 		return value;
 	},
-	appendTo: function(view){
+
+	appendTo(view){
 		if (is.dom(view)){
 			view.appendChild(this.el);
 		} else {
@@ -892,20 +1005,20 @@ const View = module.exports = Base.extend({
 		}
 		return this;
 	},
-	addClass: function(){
-		var arg;
-		for (var i = 0; i < arguments.length; i++){
-			arg = arguments[i];
+
+	addClass(...args){
+		for (const arg of args){
 			if (is.arr(arg))
 				this.addClass.apply(this, arg);
-			else if (arg.indexOf(" ") > -1)
+			else if (arg && arg.indexOf(" ") > -1)
 				this.addClass.apply(this, arg.split(" "));
 			else
 				this.el.classList.add(arg);
 		}
 		return this;
 	},
-	removeClass: function(className){
+
+	removeClass(className){
 		var arg;
 		for (var i = 0; i < arguments.length; i++){
 			arg = arguments[i];
@@ -918,43 +1031,57 @@ const View = module.exports = Base.extend({
 		}
 		return this;
 	},
-	hasClass: function(className){
+
+	hasClass(className){
 		return this.el.classList.contains(className);
 	},
-	attr: function(name, value){
+
+	attr(name, value){
 		this.el.setAttribute(name, value);
 		return this;
 	},
-	click: function(cb){
+
+	click(cb){
 		this.el.addEventListener("click", cb.bind(this));
 		return this;
 	},
-	on: function(event, cb){
+
+	set_click(cb){
+		this.click(cb);
+	},
+
+	on(event, cb){
 		var bound = cb.bind(this);
 		this.el.addEventListener(event, bound);
 		return bound; // so you can remove it
 	},
-	off: function(event, cb){
+
+	off(event, cb){
 		this.el.removeEventListener(event, cb);
 		return this; //?
 	},
-	empty: function(){
+
+	empty(){
 		this.el.innerHTML = "";
 		return this;
 	},
-	focus: function(){
+
+	focus(){
 		this.el.focus();
 		return this;
 	},
-	show: function(){
+
+	show(){
 		this.el.style.display = "";
 		return this;
 	},
-	styles: function(){
+
+	styles(){
 		return getComputedStyle(this.el);
 	},
+
 	// inline styles
-	style: function(prop, value){
+	style(prop, value){
 		// set with object
 		if (is.obj(prop)){
 			for (var p in prop){
@@ -978,25 +1105,30 @@ const View = module.exports = Base.extend({
 			throw "whaaaat";
 		}
 	},
-	toggle: function(){
+
+	toggle(){
 		if (this.styles().display === "none")
 			return this.show();
 		else {
 			return this.hide();
 		}
 	},
-	index: function(){
+
+	index(){
 		var index = 0, prev;
 		// while (prev = this.el.previousElementSibling)
 	},
-	hide: function(){
+
+	hide(){
 		this.el.style.display = "none";
 		return this;
 	},
-	remove: function(){
+
+	remove(){
 		this.el.parentNode && this.el.parentNode.removeChild(this.el);
 		return this;
 	},
+
 	editable(remove){
 		remove = (remove === false);
 		const hasAttr = this.el.hasAttribute("contenteditable");
@@ -1010,6 +1142,7 @@ const View = module.exports = Base.extend({
 		}
 		return this;
 	},
+
 	value(){
 		// get&set?
 		return this.el.innerHTML;
@@ -1025,6 +1158,35 @@ View.assign({
 	restore_captor: function(){
 		this.captor = this.previous_captors.pop();
 	}
+});
+
+View.V = View.extend("V", {
+	instantiate(...args){
+		this.smart_tag(args);
+		this.render_el();
+		this.append(...args);
+		this.initialize();
+	},
+	smart_tag(args){
+		const token = args[0];
+		if (is.str(token) && token.indexOf(" ") === -1){
+			if (token.indexOf("span") === 0){
+				this.tag = "span";
+				this.smart_classes(token);
+				args.shift();
+			} else if (token.indexOf(".") === 0){
+				this.smart_classes(token);
+				args.shift();
+			}
+		}
+	},
+	smart_classes(token){
+		this.classes = token.split(".").slice(1);
+	}
+});
+
+View.Span = View.extend("Span", {
+	tag: "span"
 });
 
 }); // end
@@ -1155,25 +1317,27 @@ define("server", ["logger"], function(require, exports, module){
 
 	server.addEventListener("open", function(){
 		log("server connected");
+		server.send("connection!");
 	});
 
 	server.addEventListener("message", function(e){
 		if (e.data === "reload"){
 			window.location.reload();
 		} else {
-			log("message from server", e);
+			log(e.data);
 		}
 	});
 })
 define("simple", 
 	{ log: false },
-	["Base", "logger", "is", "mixin", "View", "Test", "server"], 
+	["Base", "logger", "is", "Module", "mixin", "View", "Test", "server"], 
 	function(require, exports, module){
 ////////
 
 window.Base = require("Base");
 window.logger = require("logger");
 window.is = require("is");
+window.Module = require("Module");
 window.mixin = require("mixin");
 window.View = require("View");
 window.Test = require("Test");
@@ -1182,3 +1346,5 @@ window.server = require("server");
 module.exports = "so simple";
 
 }); // end
+
+simple = define;

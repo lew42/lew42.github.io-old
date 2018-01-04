@@ -2,6 +2,7 @@ define = function(...args){
 	return new define.Module(...args);
 };
 
+// move this to Module.path
 define.path = "modules";
 
 define.P = function(){
@@ -25,6 +26,40 @@ define.doc = new Promise((res, rej) => {
 		document.addEventListener("DOMContentLoaded", res);
 });
 
+document.then = function(...args){
+	define.doc.then(...args);
+};
+
+define.new = function(){
+	const new_define = function(...args){
+		return new new_define.Module(...args);
+	};
+	new_define.path = define.path;
+	new_define.P = define.P;
+	new_define.doc = define.doc;
+	new_define.new = define.new;
+	new_define.logger = define.logger;
+	new_define.Base = class Base extends define.Base {};
+	new_define.Module = class Module extends define.Module {};
+	new_define.Module.modules = {};
+	return new_define;
+};
+
+define.debugger = function(){
+	this.await_debug = define.P();
+	document.addEventListener("keypress", e => {
+		if (e.code === "Space" && e.ctrlKey){
+			this.await_debug.resolve();
+			console.log("continue?");
+		}
+	});
+
+	return this.await_debug;
+};
+
+define.table = function(){
+	console.table(this.Module.modules);
+};
 // end
 
 define.logger = (function(){
@@ -133,7 +168,7 @@ define.Base = class Base {
 		const cbs = this.events[event];
 		if (cbs && cbs.length)
 			for (const cb of cbs)
-				cb.apply(this, ...args);
+				cb.apply(this, args);
 		return this;
 	}
 
@@ -233,7 +268,7 @@ define.Base = class Base {
 		const cbs = this.events[event];
 		if (cbs && cbs.length)
 			for (const cb of cbs)
-				cb.apply(this, ...args);
+				cb.apply(this, args);
 		return this;
 	}
 
@@ -251,15 +286,16 @@ define.Module = class Module extends define.Base {
 
 	constructor(...args){
 		super();
+		this.constructor.emit("construct", this, args);
 		return (this.get(args[0]) || this.initialize()).set(...args);
 	}
 
 	get(token){
-		return typeof token === "string" && Module.get(this.resolve(token));
+		return typeof token === "string" && this.constructor.get(this.resolve(token));
 	}
 
 	initialize(...args){
-		this.ready = Module.P();
+		this.ready = this.constructor.P();
 		this.dependencies = [];
 		this.dependents = [];
 
@@ -269,20 +305,25 @@ define.Module = class Module extends define.Base {
 	exec(){
 		this.exports = {};
 
+		this.emit("pre-exec");
+
 		// log if no dependents
 		const log = this.log.if(!this.dependents.length);
 		
 		log.group(this.id);
-		const ret = this.factory.call(this, this.require.bind(this), this.exports, this);
+		const ret = this.factory.call(this.ctx || this, this.require.bind(this), this.exports, this);
 		log.end();
 
 		if (typeof ret !== "undefined")
 			this.exports = ret;
 
+		this.emit("executed");
+
 		return this.exports;
 	}
 
 	// `this.token` is transformed into `this.id`
+	// todo: pass { id: "..." } to if already resolved...
 	resolve(token){ 
 		var id, 
 			parts;
@@ -316,11 +357,12 @@ define.Module = class Module extends define.Base {
 				id = this.url.path + id.replace("./", "");
 				// token = token.replace("./", ""); // nope - need to parse id->host/path
 			} else if (id[0] !== "/"){
-				id = "/" + define.path + "/" + id;
+				id = "/" + this.constructor.path + "/" + id;
 			}
 		}
 
-		this.log(this.id, ".resolve(", token, ") =>", id);
+		this.emit("resolved", token, id);
+		// this.log(this.id, ".resolve(", token, ") =>", id);
 		return id;
 	}
 
@@ -345,7 +387,7 @@ define.Module = class Module extends define.Base {
 	require(token){
 		const module = this.get(token);
 		if (!module)
-			throw "module not preloaded";
+			console.error("module not preloaded");
 		return module.exports;
 	}
 
@@ -361,6 +403,7 @@ define.Module = class Module extends define.Base {
 			this.script.src = this.src;
 			document.head.appendChild(this.script);
 			this.requested = true;
+			this.emit("requested");
 		} else {
 			throw "trying to re-request?"
 		}
@@ -372,10 +415,10 @@ define.Module = class Module extends define.Base {
 
 		if (!this.id){
 			this.id = id;
-			this.url = Module.url(this.id);
+			this.url = this.constructor.url(this.id);
 
 			// cache me
-			Module.set(this.id, this);
+			this.constructor.set(this.id, this);
 
 			this.emit("id", id);
 		} else {
@@ -417,6 +460,8 @@ define.Module = class Module extends define.Base {
 
 		if (this.queued)
 			clearTimeout(this.queued);
+
+		this.emit("defined");
 	}
 
 	id_from_src(){
@@ -466,13 +511,13 @@ define.Module = class Module extends define.Base {
 	}
 
 	static get(id){
-		if (!this.modules)
+		if (!this.hasOwnProperty("modules"))
 			this.modules = {};
 		return this.modules[id]
 	}
 
 	static set(id, module){
-		if (!this.modules)
+		if (!this.hasOwnProperty("modules"))
 			this.modules = {};
 		if (this.modules[id])
 			throw "don't redefine a module";
@@ -492,4 +537,10 @@ define.Module = class Module extends define.Base {
 			path: a.pathname.substr(0, a.pathname.lastIndexOf('/') + 1)
 		};
 	}
-} // end
+}
+
+define.Module.path = define.path || "modules";
+
+window.dispatchEvent(new Event("define.debug"));
+
+// end
